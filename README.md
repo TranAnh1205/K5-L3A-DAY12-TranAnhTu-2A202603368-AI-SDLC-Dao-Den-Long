@@ -35,6 +35,20 @@ Yêu cầu dự án được phát hành tại **[Đảo Đèn Lồng Lab](https
 
 Yêu cầu sẽ được bổ sung và có thể thay đổi giữa các phase, giống dự án thật.
 
+### Lịch 4 giờ
+
+Bài lab kéo dài **4 giờ**. Mỗi phase khoảng **1 giờ** và được phát hành đúng mốc giờ. Phase mới xuất hiện trên lab board khi tới mốc.
+
+| Mốc | Sự kiện | Hạn tag |
+|---|---|---|
+| 0h | Phát hành **Phase 1** (PRD-0), gồm cả phần chuẩn bị | `phase-1` trước mốc 1h |
+| 1h | Phát hành **Phase 2** | `phase-2` trước mốc 2h |
+| 2h | Phát hành **Phase 3** | `phase-3` trước mốc 3h |
+| 3h | Phát hành **Phase 4** | `phase-4`, Release `v1.0.0` và video trước mốc 4h |
+| 4h | Hết giờ lab, chốt bài | |
+
+Hết giờ mỗi phase thì tag và chuyển sang phase tiếp theo, dù phase chưa hoàn hảo. Chỗ chưa xong ghi trung thực trong bằng chứng.
+
 ---
 
 ## Gợi ý SDLC (cách làm là của bạn)

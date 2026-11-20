@@ -5,6 +5,19 @@
 > Cách làm: [GUIDE.md](GUIDE.md). Nộp bài: [SUBMISSION.md](SUBMISSION.md).
 > Cách trình bày bằng chứng, tên file và cấu trúc thư mục do bạn chọn. Các gợi ý dưới đây chỉ là ví dụ.
 
+## Lịch 4 giờ
+
+| Checkpoint | Mốc | Thời lượng |
+|---|---|---|
+| CP0 Chuẩn bị | 0h (trong giờ Phase 1) | khoảng 10 phút |
+| CP1 Phase 1 | 0h đến 1h | 60 phút (gồm CP0) |
+| CP2 Phase 2 | 1h đến 2h | 60 phút |
+| CP3 Phase 3 | 2h đến 3h | 60 phút |
+| CP4 Phase 4 và phát hành | 3h đến 4h | 60 phút |
+| CP5 Video và nộp | trong 15 phút cuối của giờ thứ tư | 10 đến 15 phút |
+
+Hết giờ mỗi phase: gắn tag, push, rồi đi tiếp.
+
 ## Big picture
 
 ```
@@ -25,9 +38,9 @@ Mỗi checkpoint phase (CP1 đến CP4) có cùng một khung, nhưng nội dung
 
 ---
 
-## Checkpoint 0: Chuẩn bị
+## Checkpoint 0: Chuẩn bị (khoảng 10 phút)
 
-**Mục tiêu:** có môi trường làm việc và repo sẵn sàng trước khi nhận Phase 1.
+**Mục tiêu:** có môi trường làm việc và repo sẵn sàng. Nên chuẩn bị **trước** buổi lab nếu có thể. Nếu không, làm ngay đầu giờ Phase 1.
 
 Việc cần làm:
 - [ ] Tạo **repo cá nhân, public** trên GitHub, đặt tên theo [SUBMISSION.md](SUBMISSION.md).
@@ -40,7 +53,7 @@ Tự kiểm: clone repo sang thư mục khác và chạy được chương trìn
 
 ---
 
-## Checkpoint 1: Phase 1 (PRD-0)
+## Checkpoint 1: Phase 1 (PRD-0), 0h đến 1h
 
 **Mục tiêu:** từ một mô tả tổng quát và mơ hồ, làm ra một bản chơi được của màn đầu tiên, kèm chế độ headless theo Test Contract, và chứng minh nó đúng.
 
@@ -59,7 +72,7 @@ Tự kiểm:
 
 ---
 
-## Checkpoint 2: Phase 2 (Ticket-02)
+## Checkpoint 2: Phase 2 (Ticket-02), 1h đến 2h
 
 **Mục tiêu:** tiếp nhận yêu cầu mới, mở rộng sản phẩm mà không làm hỏng những gì đã đúng.
 
@@ -75,7 +88,7 @@ Tự kiểm:
 
 ---
 
-## Checkpoint 3: Phase 3 (Ticket-03)
+## Checkpoint 3: Phase 3 (Ticket-03), 2h đến 3h
 
 **Mục tiêu:** xử lý một thay đổi yêu cầu có thể **thay thế** những luật đã có.
 
@@ -92,7 +105,7 @@ Tự kiểm:
 
 ---
 
-## Checkpoint 4: Phase 4 và phát hành (Ticket-04)
+## Checkpoint 4: Phase 4 và phát hành (Ticket-04), 3h đến 4h
 
 **Mục tiêu:** đưa sản phẩm đến mức phát hành được, đo được, cài đặt dễ.
 
@@ -108,7 +121,7 @@ Tự kiểm:
 
 ---
 
-## Checkpoint 5: Video demo và nộp bài
+## Checkpoint 5: Video demo và nộp bài (10 đến 15 phút cuối)
 
 **Mục tiêu:** hoàn tất ghi chép, quay video, kiểm tra lần cuối, nộp.
 

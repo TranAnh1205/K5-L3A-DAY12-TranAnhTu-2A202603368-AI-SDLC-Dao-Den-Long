@@ -18,10 +18,20 @@ Bạn có thể tạo repo mới với đúng tên này, hoặc đổi tên repo
 
 ## 2. Deadline
 
-- **Hạn chốt cuối mặc định:** **23h59 cùng ngày làm Lab đối với ca sáng và 11h59 trưa ngày hôm sau đối với ca chiều** (giờ Việt Nam, ICT / GMT+7).
-- Hạn của từng phase (tag `phase-1` đến `phase-4`) do Coach công bố trong buổi Lab.
+Lab kéo dài **4 giờ**, mỗi phase khoảng 1 giờ. Hạn tag tính theo **mốc giờ trong buổi lab**.
+
+| Mục | Hạn |
+|---|---|
+| Tag `phase-1` | Trước mốc 1h (khi Phase 2 phát hành) |
+| Tag `phase-2` | Trước mốc 2h |
+| Tag `phase-3` | Trước mốc 3h |
+| Tag `phase-4`, Release `v1.0.0`, video | Trước mốc 4h (hết giờ lab) |
+| Nộp link repo lên LMS | Theo thông báo của Coach. Mặc định: **23h59 cùng ngày làm Lab đối với ca sáng và 11h59 trưa ngày hôm sau đối với ca chiều** (ICT / GMT+7) |
+
+- Thời điểm tính là thời điểm của **tag và Release** trên GitHub. Sau mốc giờ của phase, tag mới hoặc commit mới cho phase đó có thể không được tính.
+- Sau khi hết giờ lab, bạn chỉ nộp link; **không** commit thêm nội dung sản phẩm. Commit sau hạn có thể không được tính.
 - Gia hạn chỉ khi Key Coach thông báo **trong vòng 48 giờ sau Lab**.
-- Sau hạn: nộp muộn bị trừ điểm; commit và tag sau hạn có thể không được tính. Thời điểm tính là thời điểm của **tag và Release** trên GitHub.
+- Nộp muộn bị trừ điểm theo quy định khóa.
 
 ## 3. Những gì phải có trong repo
 

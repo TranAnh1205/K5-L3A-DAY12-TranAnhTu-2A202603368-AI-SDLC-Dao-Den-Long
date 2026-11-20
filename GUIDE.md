@@ -17,6 +17,32 @@ Phase 3   Ticket-03                                      -> tag phase-3
 Phase 4   Ticket-04, hoàn thiện và phát hành             -> tag phase-4 + Release v1.0.0
 ```
 
+### Lịch 4 giờ
+
+Lab kéo dài **4 giờ**, mỗi phase khoảng **1 giờ**, phát hành đúng mốc giờ:
+
+```
+0h   Phase 1 phát hành (gồm chuẩn bị)      tag phase-1 trước 1h
+1h   Phase 2 phát hành                      tag phase-2 trước 2h
+2h   Phase 3 phát hành                      tag phase-3 trước 3h
+3h   Phase 4 phát hành                      tag phase-4, Release v1.0.0, video trước 4h
+4h   Hết giờ
+```
+
+Gợi ý chia **60 phút** mỗi phase:
+
+| Việc | Thời gian gợi ý |
+|---|---|
+| Đọc yêu cầu, ghi giả định, nghĩ cách kiểm chứng | 8 đến 10 phút |
+| Lập kế hoạch với agent và duyệt | 5 phút |
+| Xây dựng theo bước nhỏ | 25 đến 30 phút |
+| Kiểm chứng và lưu bằng chứng | 10 đến 12 phút |
+| Ghi chú nhanh, gắn tag, push | 3 đến 5 phút |
+
+Phase 1 có thêm khoảng 10 phút chuẩn bị môi trường nên phần xây dựng ngắn hơn. Phase 4 cần dành khoảng 10 đến 15 phút cuối cho Release và video.
+
+**Hết giờ phase thì tag và đi tiếp**, dù chưa hoàn hảo. Một phần ít tính năng nhưng có bằng chứng rõ tốt hơn nhiều tính năng nhưng không kiểm chứng được. Với thời gian này, quyết định phạm vi và dùng token cẩn thận quan trọng hơn bao giờ hết.
+
 Lab board: **[Đảo Đèn Lồng Lab](https://claude.ai/artifact/Q1RYyv1dxjUczzCbd2ZnoW)**. Mỗi phase là một tab, tab chưa phát hành bị khóa. Mỗi tab có trợ giảng AI riêng, chỉ trả lời trong phạm vi phase đó.
 
 ## 2. Dùng lab board và trợ giảng
