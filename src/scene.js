@@ -12,6 +12,33 @@ export const PAL = {
 };
 const std = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 
+// Starfield + moon shared by all nights. Returned so the client can animate them.
+export function buildSky() {
+  const g = new THREE.Group();
+  // stars as a Points cloud
+  const starGeo = new THREE.BufferGeometry();
+  const N = 600;
+  const pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 180 + Math.random() * 40;
+    const y = 40 + Math.random() * 80;
+    pos[i * 3] = Math.cos(a) * r;
+    pos[i * 3 + 1] = y;
+    pos[i * 3 + 2] = Math.sin(a) * r;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, sizeAttenuation: true, transparent: true, opacity: 0.9 }));
+  // moon
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(4, 20, 16), new THREE.MeshBasicMaterial({ color: 0xfff6c2 }));
+  moon.position.set(60, 70, -80);
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 16), new THREE.MeshBasicMaterial({ color: 0xfff6c2, transparent: true, opacity: 0.18 }));
+  halo.position.copy(moon.position);
+  g.add(stars, moon, halo);
+  g.userData = { stars, moon, halo };
+  return g;
+}
+
 function islandDisc(cx, cz, r) {
   const g = new THREE.Group();
   const sand = new THREE.Mesh(new THREE.CylinderGeometry(r, r - 3, 9, 64), std(PAL.sand));
@@ -25,23 +52,46 @@ function islandDisc(cx, cz, r) {
 function makeLantern(pos, id) {
   const g = new THREE.Group();
   g.position.set(pos[0], pos[1], pos[2]);
+  // sturdy post with base ring
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 3.2, 10), std(PAL.wood));
   post.position.y = 1.6;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.2, 12), std(0x4a3420));
+  base.position.y = 0.1;
+  // lamp (lit = ffb347, off = 5B5F6E per palette)
   const lampMat = new THREE.MeshLambertMaterial({ color: PAL.lampOff, emissive: 0x000000 });
-  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1, 10), lampMat);
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1, 12), lampMat);
   lamp.position.y = 3.6;
+  // vertical bars on lamp
+  const barMat = std(0x3a2818);
+  for (let i = 0; i < 4; i++) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.02, 0.04), barMat);
+    const a = i * Math.PI / 2;
+    bar.position.set(Math.cos(a) * 0.6, 3.6, Math.sin(a) * 0.6);
+    g.add(bar);
+  }
   const coreMat = new THREE.MeshBasicMaterial({ color: PAL.lampCore, transparent: true, opacity: 0 });
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), coreMat);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), coreMat);
   core.position.y = 3.6;
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.55, 10), std(PAL.scarf));
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.55, 12), std(PAL.scarf));
   roof.position.y = 4.35;
+  // decorative finial
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), std(PAL.gold, { emissive: 0x6b5010 }));
+  finial.position.y = 4.75;
   const light = new THREE.PointLight(PAL.lampLit, 0, 26, 1.6);
   light.position.y = 3.6;
+  // outer glow sphere (shows when lit)
+  const glowMat = new THREE.MeshBasicMaterial({ color: PAL.lampLit, transparent: true, opacity: 0 });
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(1.1, 14, 10), glowMat);
+  glow.position.y = 3.6;
   const ringMat = new THREE.MeshBasicMaterial({ color: PAL.lampLit, transparent: true, opacity: 0, side: THREE.DoubleSide });
   const ring = new THREE.Mesh(new THREE.RingGeometry(TUNING.safe_radius - 0.1, TUNING.safe_radius, 64), ringMat);
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05;
-  g.add(post, lamp, core, roof, light, ring);
-  g.userData = { id, lampMat, coreMat, light, ringMat, lit: false };
+  // progress ring on the lamp (grows with deposited)
+  const progMat = new THREE.MeshBasicMaterial({ color: PAL.lampCore, transparent: true, opacity: 0, side: THREE.DoubleSide });
+  const prog = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.68, 32), progMat);
+  prog.rotation.x = -Math.PI / 2; prog.position.y = 3.1;
+  g.add(base, post, lamp, core, roof, finial, light, glow, ring, prog);
+  g.userData = { id, lampMat, coreMat, light, ringMat, glowMat, progMat, lit: false };
   return g;
 }
 
@@ -119,8 +169,11 @@ export function buildWorld(night) {
   const charms = new Map();
   map.charms.forEach((p, i) => { const v = makeCharm(); v.position.set(p[0], p[1] + 1.1, p[2]); charms.set(`C${i + 1}`, v); group.add(v); });
 
-  // decorative bushes (fixed layout, no gameplay effect)
+  // decorative bushes + grass tufts + flowers (fixed layout, no gameplay effect, instanced for perf)
   const bushGeo = new THREE.IcosahedronGeometry(0.7, 0);
+  const grassGeo = new THREE.ConeGeometry(0.08, 0.4, 4);
+  const flowerCore = new THREE.SphereGeometry(0.1, 6, 4);
+  const flowerCols = [0xff9aa6, 0xffe9b0, 0xc8102e, 0xf2c14e];
   for (let i = 0; i < 36; i++) {
     const a = i * 2.39996, r = 6 + ((i * 37) % 22);
     const cx = night === 2 ? (i % 2 ? 70 : 0) : 0;
@@ -130,6 +183,22 @@ export function buildWorld(night) {
     const b = new THREE.Mesh(bushGeo, std(0x23483e, { flatShading: true }));
     b.position.set(x, y + 0.3, z); b.scale.setScalar(0.7 + (i % 3) * 0.35);
     group.add(b);
+    // scatter grass + flowers around each bush
+    for (let j = 0; j < 4; j++) {
+      const ja = j * 1.57 + i * 0.3, jr = 0.9 + (j * 0.3);
+      const gx = x + Math.cos(ja) * jr, gz = z + Math.sin(ja) * jr;
+      const gy = map.floorAt(gx, gz);
+      if (gy === null || Math.abs(gy - y) > 0.1) continue;
+      const tuft = new THREE.Mesh(grassGeo, std(0x4a7a5f));
+      tuft.position.set(gx, gy + 0.2, gz); tuft.rotation.z = (i * 0.1 + j) * 0.3;
+      group.add(tuft);
+      if ((i + j) % 3 === 0) {
+        const fc = flowerCols[(i + j) % flowerCols.length];
+        const flo = new THREE.Mesh(flowerCore, new THREE.MeshBasicMaterial({ color: fc }));
+        flo.position.set(gx + 0.1, gy + 0.3, gz + 0.1);
+        group.add(flo);
+      }
+    }
   }
   return { group, lanterns, charms, map };
 }

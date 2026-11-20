@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { Game, TPS, DT } from './sim.js';
 import { TUNING, RULES } from './tuning.js';
-import { buildWorld, PAL } from './scene.js';
+import { buildWorld, buildSky, PAL } from './scene.js';
 import { createAudio } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -32,19 +32,116 @@ const ambient = new THREE.AmbientLight(0xb8b0ff, 0.15);
 const moon = new THREE.DirectionalLight(0x8f9cff, 0.35);
 moon.position.set(-20, 40, 10);
 scene.add(ambient, moon);
+// starry sky + moon (animated)
+const sky = buildSky(); scene.add(sky);
+// shooting star
+const shootGeo = new THREE.BufferGeometry();
+shootGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+const shootLine = new THREE.Line(shootGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }));
+scene.add(shootLine);
+let shootT = -1, shootStart = new THREE.Vector3(), shootEnd = new THREE.Vector3();
+function spawnShootingStar() {
+  shootT = 0;
+  const a = Math.random() * Math.PI * 2, r = 150;
+  shootStart.set(Math.cos(a) * r, 80 + Math.random() * 20, Math.sin(a) * r);
+  shootEnd.set(shootStart.x + Math.cos(a + 1) * 40, shootStart.y - 15, shootStart.z + Math.sin(a + 1) * 40);
+}
+// decorative fireflies (never pickable; purely visual)
+const decoFlies = [];
+function rebuildDecoFlies(n) {
+  for (const f of decoFlies) scene.remove(f);
+  decoFlies.length = 0;
+  if (!world) return;
+  const cx = night === 2 ? 35 : 0, cz = 0;
+  for (let i = 0; i < 50; i++) {
+    const g = new THREE.Group();
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 4), new THREE.MeshBasicMaterial({ color: PAL.moteCore, transparent: true, opacity: 0.9 }));
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 4), new THREE.MeshBasicMaterial({ color: PAL.moteHalo, transparent: true, opacity: 0.2 }));
+    g.add(core, halo);
+    g.userData = { a: i * 0.5, r: 8 + (i * 3.7) % 30, y: 1 + ((i * 13) % 4), speed: 0.3 + ((i * 7) % 5) * 0.1 };
+    scene.add(g); decoFlies.push(g);
+  }
+}
+// particle pool for lantern-lit sparkles and score pops
+const particlePool = [];
+function spawnParticles(pos, color, count = 14) {
+  for (let i = 0; i < count; i++) {
+    let p = particlePool.find((x) => !x.alive);
+    if (!p) {
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 4), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 }));
+      scene.add(mesh);
+      p = { mesh, alive: false };
+      particlePool.push(p);
+    }
+    p.alive = true; p.mesh.visible = true; p.mesh.material.color.setHex(color);
+    p.mesh.position.set(pos[0], pos[1], pos[2]);
+    const a = Math.random() * Math.PI * 2;
+    const up = 2 + Math.random() * 2;
+    p.vx = Math.cos(a) * (1 + Math.random() * 2);
+    p.vz = Math.sin(a) * (1 + Math.random() * 2);
+    p.vy = up;
+    p.life = 1.2;
+  }
+}
+function updateParticles(dt) {
+  for (const p of particlePool) {
+    if (!p.alive) continue;
+    p.life -= dt;
+    if (p.life <= 0) { p.alive = false; p.mesh.visible = false; continue; }
+    p.vy -= 6 * dt;
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y += p.vy * dt;
+    p.mesh.position.z += p.vz * dt;
+    p.mesh.material.opacity = Math.min(1, p.life);
+    p.mesh.scale.setScalar(Math.max(0.3, p.life));
+  }
+}
 
 function makeMay() {
   const g = new THREE.Group();
   const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.65, 4, 12), mat(PAL.may)); body.position.y = 0.72;
-  const scarf = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.09, 8, 16), mat(PAL.scarf)); scarf.rotation.x = Math.PI / 2; scarf.position.y = 1.28;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 12), mat(0xf2d0b0)); head.position.y = 1.5;
-  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.78, 0.42, 24), mat(0xe8d39a)); hat.position.y = 1.85;
-  const stringM = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3), new THREE.MeshBasicMaterial({ color: 0x333333 })); stringM.position.set(0, 1.62, 0.65);
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), new THREE.MeshBasicMaterial({ color: PAL.lampLit })); lamp.position.set(0, 1.4, 0.65);
-  const light = new THREE.PointLight(PAL.lampLit, 2, 9, 1.5); light.position.copy(lamp.position);
-  g.add(body, scarf, head, hat, stringM, lamp, light);
-  g.userData = { light, lamp, scarfMat: scarf.material };
+  const matBasic = (c) => new THREE.MeshBasicMaterial({ color: c });
+  // torso
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.5, 4, 12), mat(PAL.may)); torso.position.y = 0.95;
+  // sash across chest
+  const sash = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.1, 0.4), mat(PAL.scarf)); sash.position.y = 1.0; sash.rotation.z = 0.3;
+  // scarf as flowing ribbon
+  const scarfG = new THREE.Group(); scarfG.position.set(0, 1.2, -0.05);
+  const scarfSegs = [];
+  for (let i = 0; i < 4; i++) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.35 - i * 0.04, 0.08, 0.06), mat(PAL.scarf)); s.position.set(0, -i * 0.11, -0.05 - i * 0.03); scarfG.add(s); scarfSegs.push(s); }
+  // head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 14), mat(0xf2d0b0)); head.position.y = 1.5;
+  // eyes
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), matBasic(0x120a1a)); eyeL.position.set(-0.08, 1.55, 0.22);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), matBasic(0x120a1a)); eyeR.position.set(0.08, 1.55, 0.22);
+  // cheeks
+  const cheekL = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), matBasic(0xff9aa6)); cheekL.position.set(-0.14, 1.48, 0.2);
+  const cheekR = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), matBasic(0xff9aa6)); cheekR.position.set(0.14, 1.48, 0.2);
+  // nón lá: wide brim + tall cone
+  const brim = new THREE.Mesh(new THREE.ConeGeometry(0.85, 0.22, 24, 1, true), mat(0xe8d39a)); brim.position.y = 1.78;
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.55, 24), mat(0xd9c08a)); cone.position.y = 2.05;
+  const brimRing = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.02, 6, 32), matBasic(PAL.wood)); brimRing.rotation.x = Math.PI / 2; brimRing.position.y = 1.72;
+  // arms (will animate)
+  const armGeo = new THREE.CapsuleGeometry(0.1, 0.4, 4, 8);
+  const armL = new THREE.Mesh(armGeo, mat(PAL.may)); armL.position.set(-0.38, 1.05, 0);
+  const armR = new THREE.Mesh(armGeo, mat(PAL.may)); armR.position.set(0.38, 1.05, 0);
+  // legs
+  const legGeo = new THREE.CapsuleGeometry(0.11, 0.38, 4, 8);
+  const legL = new THREE.Mesh(legGeo, mat(0x3a4d6b)); legL.position.set(-0.15, 0.3, 0);
+  const legR = new THREE.Mesh(legGeo, mat(0x3a4d6b)); legR.position.set(0.15, 0.3, 0);
+  // hanging lantern: string + lamp
+  const stringM = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3), matBasic(0x333333)); stringM.position.set(0, 1.62, 0.7);
+  const lampHolder = new THREE.Group(); lampHolder.position.set(0, 1.5, 0.7);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10), matBasic(PAL.lampLit)); lampHolder.add(lamp);
+  const lampGlow = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshBasicMaterial({ color: PAL.lampCore, transparent: true, opacity: 0.4 })); lampHolder.add(lampGlow);
+  const light = new THREE.PointLight(PAL.lampLit, 2.2, 10, 1.5); light.position.set(0, 1.5, 0.7);
+  // shadow blob under feet
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.01;
+  // charm halo
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.04, 6, 32), matBasic(PAL.gold)); halo.rotation.x = Math.PI / 2; halo.position.y = 2.2; halo.visible = false;
+  g.add(torso, sash, scarfG, head, eyeL, eyeR, cheekL, cheekR, brim, cone, brimRing, armL, armR, legL, legR, stringM, lampHolder, light, shadow, halo);
+  g.userData = { light, lamp, lampGlow, lampHolder, scarfMat: sash.material, scarfSegs, armL, armR, legL, legR, head, eyeL, eyeR, halo, shadow };
   return g;
 }
 const shadeGeo = new THREE.SphereGeometry(0.8, 16, 12);
@@ -54,19 +151,43 @@ function makeShade() {
   const body = new THREE.Mesh(shadeGeo, bodyMat); body.scale.set(1, 1.25, 1);
   const rimMat = new THREE.MeshBasicMaterial({ color: PAL.shadeRim, side: THREE.BackSide, transparent: true, opacity: 0.8 });
   const rim = new THREE.Mesh(shadeGeo, rimMat); rim.scale.set(1.12, 1.4, 1.12);
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xd9c2ff });
-  for (const x of [-0.25, 0.25]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), eyeMat); e.position.set(x, 0.3, 0.7); g.add(e); }
-  g.add(body, rim);
-  g.userData = { bodyMat, rimMat };
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xd9c2ff, transparent: true, opacity: 1 });
+  const eyes = [];
+  for (const x of [-0.25, 0.25]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), eyeMat); e.position.set(x, 0.3, 0.7); g.add(e); eyes.push(e); }
+  // trailing smoke tendrils (3 small spheres)
+  const smokeMat = new THREE.MeshBasicMaterial({ color: PAL.shadeRim, transparent: true, opacity: 0.3 });
+  const smokes = [];
+  for (let i = 0; i < 3; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.35 - i * 0.07, 8, 6), smokeMat.clone()); s.position.set(0, -0.3 - i * 0.2, 0); g.add(s); smokes.push(s); }
+  // stunned star overhead
+  const starMat = new THREE.MeshBasicMaterial({ color: PAL.gold });
+  const star = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 6, 16), starMat); star.position.y = 1.6; star.visible = false; g.add(star);
+  // shadow
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 16), new THREE.MeshBasicMaterial({ color: 0x120a1a, transparent: true, opacity: 0.4, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2;
+  g.add(body, rim, shadow);
+  g.userData = { bodyMat, rimMat, eyeMat, eyes, smokes, star, shadow };
   return g;
 }
 function makeDrifter() {
   const g = new THREE.Group();
   const mat = new THREE.MeshBasicMaterial({ color: PAL.drifter, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+  const headMat = new THREE.MeshBasicMaterial({ color: PAL.drifter, transparent: true, opacity: 0.9 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), headMat); head.scale.set(1, 0.7, 1.3); g.add(head);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0e1430 });
+  for (const x of [-0.08, 0.08]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 4), eyeMat); e.position.set(x, 0.03, 0.18); g.add(e); }
   const segs = [];
-  for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.4 - i * 0.04), mat); s.position.z = -i * 0.4; g.add(s); segs.push(s); }
-  const loot = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: PAL.moteHalo })); loot.position.y = 0.4; loot.visible = false; g.add(loot);
-  g.userData = { segs, loot };
+  // 10 ribbon segments to look like flowing silk
+  for (let i = 0; i < 10; i++) {
+    const w = 0.5 - i * 0.03, h = 0.35 - i * 0.025;
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(0.08, w), Math.max(0.1, h)), mat);
+    s.position.z = -0.2 - i * 0.35;
+    g.add(s); segs.push(s);
+  }
+  // loot motes sparkle along the ribbon
+  const lootMat = new THREE.MeshBasicMaterial({ color: PAL.moteHalo });
+  const lootSparks = [];
+  for (let i = 0; i < 3; i++) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 4), lootMat); l.visible = false; g.add(l); lootSparks.push(l); }
+  g.userData = { segs, lootSparks, headMat, mat };
   return g;
 }
 const moteCore = new THREE.SphereGeometry(0.13, 8, 6), moteHaloG = new THREE.SphereGeometry(0.32, 8, 6);
@@ -86,7 +207,7 @@ let night = 1, total = 0;
 let game = null, world = null, may = null;
 const views = { motes: new Map(), shades: new Map(), drifters: new Map() };
 let camYaw = 0, lastSecond = -1, fovKick = 0, pulseT = 0, flash = 0;
-let acc = 0, last = performance.now(), frames = 0, fpsT = performance.now(), fps = 0;
+let acc = 0, last = performance.now(), frames = 0, fpsT = performance.now(), fps = 0, stepAcc = 0, bellAcc = 0;
 const keys = new Set();
 
 function showScreen(id) { for (const s of document.querySelectorAll('.screen')) s.classList.toggle('show', s.id === id); $('hud').style.display = 'none'; }
@@ -100,6 +221,7 @@ function buildNight(n) {
   world = buildWorld(n);
   scene.add(world.group);
   may = makeMay(); scene.add(may);
+  rebuildDecoFlies();
   game = new Game({ seed: (Math.random() * 1e9) | 0, night: n });
   camYaw = 0; lastSecond = -1; acc = 0;
   const mk = $('motes'); mk.innerHTML = '';
@@ -116,8 +238,8 @@ function beginNight(n, skipIntro = false) {
 let helpTimer = 0;
 function startPlaying() {
   audio.ensure(); audio.startMusic(); state = 'playing'; hideScreens(); acc = 0; last = performance.now();
-  const help = $('help'); help.style.opacity = '0.65'; clearTimeout(helpTimer);
-  helpTimer = setTimeout(() => { help.style.opacity = '0'; }, 15000);   // controls reminder fades out
+  const help = $('help'); help.style.opacity = '0.55'; clearTimeout(helpTimer);
+  helpTimer = setTimeout(() => { help.style.opacity = '0'; }, 8000);   // controls reminder fades out quickly
 }
 
 function pauseGame() {
@@ -196,17 +318,59 @@ function readInput() {
 }
 
 // ---------------------------------------------------------------- per-frame presentation
+let shakeT = 0, shakeAmp = 0;
+function shake(amp = 0.25) { shakeT = 0.25; shakeAmp = amp; }
+function popScore(amount, worldPos, color) {
+  const el = document.createElement('div');
+  el.className = 'score-pop'; el.textContent = `+${amount}`;
+  el.style.color = color; document.body.appendChild(el);
+  el.dataset.pos = JSON.stringify(worldPos);
+  el.dataset.life = '1.4';
+  scorePops.push(el);
+}
+const scorePops = [];
+function updateScorePops(dt) {
+  for (let i = scorePops.length - 1; i >= 0; i--) {
+    const el = scorePops[i];
+    const life = parseFloat(el.dataset.life) - dt;
+    if (life <= 0) { el.remove(); scorePops.splice(i, 1); continue; }
+    el.dataset.life = String(life);
+    const wp = JSON.parse(el.dataset.pos);
+    const v = new THREE.Vector3(wp[0], wp[1] + 2 + (1.4 - life) * 1.2, wp[2]).project(camera);
+    if (v.z > 1 || v.z < -1) { el.style.opacity = '0'; continue; }
+    el.style.left = `${(v.x * 0.5 + 0.5) * innerWidth}px`;
+    el.style.top = `${(-v.y * 0.5 + 0.5) * innerHeight}px`;
+    el.style.opacity = String(Math.min(1, life));
+  }
+}
 function handleEvent(e) {
-  const s = audio.sfx;
+  const s = audio.sfx, p = game.player;
   switch (e.name) {
-    case 'mote_picked': s.pick(e.data.carried); break;
-    case 'deposit': s.deposit(); break;
-    case 'lantern_lit': s.light(); flash = 1; break;
-    case 'pulse': s.pulse(); pulseT = 1; break;
-    case 'player_hit': s.hit(); break;
+    case 'mote_picked':
+      s.pick(e.data.carried);
+      popScore(0, p.pos, '#FFF6C2'); // visual only - actual score comes at deposit
+      break;
+    case 'deposit':
+      s.deposit();
+      popScore(e.data.amount * TUNING.score.per_mote, p.pos, '#F2C14E');
+      break;
+    case 'lantern_lit':
+      s.light(); flash = 1;
+      const lan = game.lanterns.find((l) => l.id === e.data.lantern_id);
+      if (lan) { spawnParticles([lan.pos[0], lan.pos[1] + 3.6, lan.pos[2]], PAL.lampLit, 20); popScore(TUNING.score.per_lantern, lan.pos, '#FFB347'); }
+      break;
+    case 'pulse':
+      s.pulse(); pulseT = 1; shake(0.3);
+      spawnParticles([p.pos[0], p.pos[1] + 1, p.pos[2]], PAL.lampCore, 16);
+      if (e.data.stunned_ids.length) popScore(e.data.stunned_ids.length * TUNING.score.per_stun, p.pos, '#FFE58A');
+      break;
+    case 'player_hit':
+      s.hit(); shake(e.data.by === 'fall' ? 0.6 : 0.4);
+      spawnParticles([p.pos[0], p.pos[1] + 1, p.pos[2]], 0xff5a5f, 10);
+      break;
     case 'dash': s.dash(); fovKick = 1; break;
-    case 'charm_picked': s.charm(); break;
-    case 'drifter_steal': s.steal(); break;
+    case 'charm_picked': s.charm(); spawnParticles([p.pos[0], p.pos[1] + 1, p.pos[2]], PAL.gold, 20); break;
+    case 'drifter_steal': s.steal(); shake(0.2); break;
     case 'shade_spawned': s.spawn(); break;
     default: break;
   }
@@ -220,6 +384,43 @@ function syncViews(t) {
   may.userData.light.intensity = 1.2 + p.carried * 0.35 + pulseT * 14;
   may.userData.light.distance = 9 + pulseT * 10;
   may.userData.scarfMat.color.setHex(p.charm > 0 ? PAL.gold : PAL.scarf);
+  // run animation: swing arms/legs with horizontal speed
+  const spd = Math.hypot(p.hv[0], p.hv[1]);
+  const runPh = t * (6 + spd * 0.8);
+  const swing = Math.min(spd / 6, 1) * 0.55;
+  may.userData.armL.rotation.x = Math.sin(runPh) * swing;
+  may.userData.armR.rotation.x = -Math.sin(runPh) * swing;
+  may.userData.legL.rotation.x = -Math.sin(runPh) * swing;
+  may.userData.legR.rotation.x = Math.sin(runPh) * swing;
+  // jump pose + lantern bob
+  const airLift = p.grounded ? 0 : Math.min(0.4, Math.max(-0.2, p.vy * 0.04));
+  may.userData.armL.rotation.x += airLift * 0.5;
+  may.userData.armR.rotation.x += airLift * 0.5;
+  may.userData.lampHolder.rotation.z = Math.sin(runPh * 0.9) * 0.3 * Math.min(spd / 6, 1);
+  may.userData.lampHolder.rotation.x = Math.cos(runPh * 0.9) * 0.15 * Math.min(spd / 6, 1);
+  may.userData.lampGlow.material.opacity = 0.35 + p.carried * 0.03 + pulseT * 0.4;
+  // scarf wave
+  may.userData.scarfSegs.forEach((s, i) => {
+    s.rotation.x = Math.sin(t * 3 - i * 0.5) * 0.3 + (spd > 1 ? -0.4 : 0);
+    s.rotation.z = Math.sin(t * 2 - i * 0.6) * 0.2;
+  });
+  // eye expression
+  const low = p.flames <= 1, happy = flash > 0.5;
+  const eyeScale = low ? 0.6 : happy ? 1.3 : 1;
+  may.userData.eyeL.scale.set(1, eyeScale, 1);
+  may.userData.eyeR.scale.set(1, eyeScale, 1);
+  may.userData.eyeMat && (may.userData.eyeMat.color = may.userData.eyeMat.color);
+  // charm halo
+  may.userData.halo.visible = p.charm > 0;
+  if (p.charm > 0) { may.userData.halo.rotation.z = t * 2; may.userData.halo.position.y = 2.2 + Math.sin(t * 3) * 0.05; }
+  // hit flash: tint body red briefly
+  const hurt = p.invuln > 60; // right after a hit
+  const tint = hurt ? 0xff8888 : PAL.may;
+  // shadow follows ground under feet
+  const feetY = p.grounded ? 0 : -p.pos[1] + 0.01;
+  may.userData.shadow.position.y = feetY;
+  may.userData.shadow.material.opacity = Math.max(0.1, 0.4 - Math.max(0, p.pos[1]) * 0.05);
+  void tint;
 
   const sync = (list, map, make, apply) => {
     const live = new Set(list.map((o) => o.id));
@@ -235,19 +436,46 @@ function syncViews(t) {
     const u = v.userData;
     v.position.set(s.pos[0], s.pos[1] - 0.2 + Math.sin(t * 3 + s.pos[0]) * 0.12, s.pos[2]);
     v.lookAt(p.pos[0], v.position.y, p.pos[2]);
-    const stun = s.state === 'stunned', spawning = s.state === 'spawning';
+    const stun = s.state === 'stunned', spawning = s.state === 'spawning', chase = s.state === 'chase';
     u.bodyMat.color.setHex(stun ? PAL.shadeStun : PAL.shade);
     u.bodyMat.opacity = spawning ? 0.45 : stun ? 0.7 : 0.95;
     u.rimMat.color.setHex(stun ? 0x6a5a9a : PAL.shadeRim);
     v.scale.setScalar(spawning ? 0.4 + 0.6 * (1 - s.left / RULES.shade_spawning_ticks) : 1);
+    // eyes glow stronger during chase
+    u.eyeMat.color.setHex(chase ? 0xffb347 : stun ? 0xd9c2ff : 0xd9c2ff);
+    u.eyeMat.opacity = stun ? 0.4 : 1;
+    // smoke tendrils trail behind
+    u.smokes.forEach((sm, i) => {
+      sm.position.set(Math.sin(t * 2 + i) * 0.1, -0.25 - i * 0.22 + Math.sin(t * 3 + i) * 0.08, Math.cos(t * 2 + i) * 0.1);
+      sm.material.opacity = (chase ? 0.4 : 0.25) * (spawning ? 0.3 : 1);
+      sm.scale.setScalar(1 + Math.sin(t * 2 + i) * 0.1);
+    });
+    u.star.visible = stun;
+    if (stun) { u.star.rotation.z = t * 3; u.star.rotation.x = Math.PI / 2; }
+    u.shadow.position.y = -(s.pos[1] - 1) - 0.1; // ground relative
+    u.shadow.material.opacity = 0.4 * (spawning ? 0.4 : 1);
   });
   sync(game.drifters, views.drifters, makeDrifter, (v, d) => {
     v.position.set(d.pos[0], d.pos[1] + Math.sin(t * 2 + d.pos[2]) * 0.2, d.pos[2]);
     const away = d.state === 'flee';
     const dx = away ? d.pos[0] - p.pos[0] : p.pos[0] - d.pos[0], dz = away ? d.pos[2] - p.pos[2] : p.pos[2] - d.pos[2];
     v.rotation.y = Math.atan2(dx, dz) + Math.PI;
-    v.userData.segs.forEach((sg, i) => { sg.position.x = Math.sin(t * 6 - i * 0.9) * 0.3; sg.rotation.y = Math.sin(t * 6 - i) * 0.6; });
-    v.userData.loot.visible = d.stolen > 0;
+    v.userData.segs.forEach((sg, i) => {
+      sg.position.x = Math.sin(t * 6 - i * 0.7) * (0.25 + i * 0.03);
+      sg.position.y = Math.cos(t * 5 - i * 0.6) * 0.1;
+      sg.rotation.y = Math.sin(t * 6 - i) * 0.7;
+      sg.rotation.z = Math.cos(t * 4 - i * 0.5) * 0.3;
+    });
+    // loot sparkles flow along the ribbon
+    v.userData.lootSparks.forEach((spark, i) => {
+      spark.visible = d.stolen > 0;
+      if (d.stolen > 0) {
+        const ph = t * 2 + i * 1.3;
+        const idx = ((ph % 10) + 10) % 10;
+        const seg = v.userData.segs[Math.floor(idx)];
+        spark.position.set(seg.position.x, seg.position.y, seg.position.z);
+      }
+    });
   });
 
   let lit = 0;
@@ -257,9 +485,12 @@ function syncViews(t) {
     if (l.lit) lit++;
     u.lampMat.color.setHex(l.lit ? PAL.lampLit : PAL.lampOff);
     u.lampMat.emissive.setHex(l.lit ? PAL.lampLit : 0x000000);
+    u.lampMat.emissiveIntensity = l.lit ? 0.9 + Math.sin(t * 3 + l.pos[0]) * 0.1 : 0;
     u.coreMat.opacity = l.lit ? 1 : k * 0.55;
-    u.light.intensity = l.lit ? 7 : k * 2.2;
+    u.light.intensity = l.lit ? 7 + Math.sin(t * 4 + l.pos[0]) * 0.5 : k * 2.2;
     u.ringMat.opacity = l.lit ? 0.22 : 0;
+    u.glowMat.opacity = l.lit ? 0.22 + Math.sin(t * 2 + l.pos[0]) * 0.05 : 0;
+    u.progMat.opacity = !l.lit && k > 0 ? 0.55 * k : 0;
   }
   for (const c of game.charms) {
     const v = world.charms.get(c.id);
@@ -282,7 +513,44 @@ function updateLeaves(t, dt) {
   });
 }
 
-const hudEl = { flames: $('flames'), timer: $('timer'), right: $('right'), prompt: $('prompt'), arrow: $('arrow'), charm: $('charm'), wind: $('wind'), dash: $('cd-dash'), pulse: $('cd-pulse') };
+const hudEl = { flames: $('flames'), timer: $('timer'), right: $('right'), prompt: $('prompt'), arrow: $('arrow'), charm: $('charm'), wind: $('wind'), dash: $('cd-dash'), pulse: $('cd-pulse'), minimap: $('minimap-c')?.getContext('2d') };
+function drawMinimap() {
+  const ctx = hudEl.minimap; if (!ctx) return;
+  ctx.clearRect(0, 0, 140, 140);
+  const p = game.player.pos;
+  const R = 50; // meters shown on the minimap
+  const toXY = (x, z) => [70 + (x - p[0]) * 70 / R, 70 + (z - p[2]) * 70 / R];
+  // lanterns: filled if lit, hollow if not
+  for (const l of game.lanterns) {
+    const [mx, my] = toXY(l.pos[0], l.pos[2]);
+    if (mx < 5 || mx > 135 || my < 5 || my > 135) continue;
+    ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2);
+    ctx.fillStyle = l.lit ? '#FFB347' : '#5B5F6E';
+    ctx.fill();
+    ctx.strokeStyle = '#FFE9B0'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  // shades
+  for (const s of game.shades) {
+    const [mx, my] = toXY(s.pos[0], s.pos[2]);
+    if (mx < 5 || mx > 135 || my < 5 || my > 135) continue;
+    ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#7A3CFF'; ctx.fill();
+  }
+  // drifters
+  for (const d of game.drifters) {
+    const [mx, my] = toXY(d.pos[0], d.pos[2]);
+    if (mx < 5 || mx > 135 || my < 5 || my > 135) continue;
+    ctx.beginPath(); ctx.arc(mx, my, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#8FA3B8'; ctx.fill();
+  }
+  // Mây at center with facing arrow
+  ctx.save(); ctx.translate(70, 70);
+  const facing = Math.atan2(game.player.facing[0], game.player.facing[1]);
+  ctx.rotate(-facing);
+  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath();
+  ctx.fillStyle = '#F2C14E'; ctx.fill();
+  ctx.restore();
+}
 function drawHud() {
   const p = game.player, lit = game.lanterns.filter((l) => l.lit).length;
   hudEl.flames.innerHTML = Array.from({ length: TUNING.flames }, (_, i) => `<span class="${i < p.flames ? '' : 'off'}">🔥</span>`).join('');
@@ -316,20 +584,70 @@ function drawHud() {
   }
 }
 
+// camera zoom (mouse wheel); clamp [6, 14]
+let camDist = 9;
+addEventListener('wheel', (e) => { if (state !== 'playing' && state !== 'paused') return; camDist = Math.max(6, Math.min(14, camDist + Math.sign(e.deltaY) * 0.5)); e.preventDefault(); }, { passive: false });
+// shooting star every 30-60 s of real time
+let starTimer = 15;
+const camLook = new THREE.Vector3();
 function draw(t, dt) {
   syncViews(t);
   pulseT = Math.max(0, pulseT - dt * 2.2); flash = Math.max(0, flash - dt * 1.5); fovKick = Math.max(0, fovKick - dt * 5);
+  shakeT = Math.max(0, shakeT - dt);
   const pp = game.player.pos;
   pulseFx.position.set(pp[0], pp[1] + 0.2, pp[2]);
   pulseFx.scale.setScalar(Math.max(0.01, (1 - pulseT) * TUNING.pulse_radius));
   pulseFx.material.opacity = pulseT * 0.8;
   updateLeaves(t, dt);
+  updateParticles(dt);
+  updateScorePops(dt);
+  // sky animation: rotate stars slowly, twinkle moon
+  sky.rotation.y = t * 0.005;
+  const halo = sky.userData.halo;
+  halo.material.opacity = 0.18 + Math.sin(t * 0.5) * 0.04;
+  // shooting star
+  starTimer -= dt;
+  if (starTimer <= 0) { spawnShootingStar(); starTimer = 25 + Math.random() * 25; }
+  if (shootT >= 0) {
+    shootT += dt;
+    const k = Math.min(1, shootT / 0.6);
+    const sx = shootStart.x + (shootEnd.x - shootStart.x) * k;
+    const sy = shootStart.y + (shootEnd.y - shootStart.y) * k;
+    const sz = shootStart.z + (shootEnd.z - shootStart.z) * k;
+    const back = Math.max(0, k - 0.3);
+    const tx = shootStart.x + (shootEnd.x - shootStart.x) * back;
+    const ty = shootStart.y + (shootEnd.y - shootStart.y) * back;
+    const tz = shootStart.z + (shootEnd.z - shootStart.z) * back;
+    const arr = shootGeo.attributes.position.array;
+    arr[0] = sx; arr[1] = sy; arr[2] = sz; arr[3] = tx; arr[4] = ty; arr[5] = tz;
+    shootGeo.attributes.position.needsUpdate = true;
+    shootLine.material.opacity = Math.max(0, 1 - k) * 0.9;
+    if (k >= 1) shootT = -1;
+  } else shootLine.material.opacity = 0;
+  // decorative fireflies drift around
+  const cx = night === 2 ? 35 : 0, cz = 0;
+  for (const f of decoFlies) {
+    const d = f.userData;
+    d.a += dt * d.speed;
+    f.position.set(cx + Math.cos(d.a) * d.r, d.y + Math.sin(t + d.a) * 0.5, cz + Math.sin(d.a) * d.r);
+  }
+  // camera: smooth yaw, follow with lerp, screen shake
   const th = (camYaw * Math.PI) / 180;
-  camera.position.set(pp[0] - Math.sin(th) * 9, pp[1] + 5.5, pp[2] - Math.cos(th) * 9);
-  camera.lookAt(pp[0], pp[1] + 1.5, pp[2]);
+  const targetY = pp[1] + 5.5;
+  const targetPos = new THREE.Vector3(pp[0] - Math.sin(th) * camDist, targetY, pp[2] - Math.cos(th) * camDist);
+  camera.position.lerp(targetPos, Math.min(1, dt * 8));
+  camLook.set(pp[0], pp[1] + 1.5, pp[2]);
+  camera.lookAt(camLook);
+  if (shakeT > 0) {
+    const s = shakeT * shakeAmp;
+    camera.position.x += (Math.random() - 0.5) * s;
+    camera.position.y += (Math.random() - 0.5) * s;
+    camera.position.z += (Math.random() - 0.5) * s;
+  }
   const fov = 60 + fovKick * 6;
   if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   drawHud();
+  drawMinimap();
   renderer.render(scene, camera);
 }
 
@@ -350,6 +668,14 @@ function frame(now) {
       if (wasGrounded && !game.player.grounded && game.player.vy > 0) audio.sfx.jump();
       const sec = Math.ceil(game.timeLeft);
       if (game.timeLeft <= 10 && sec !== lastSecond && !game.over) { lastSecond = sec; audio.sfx.tick(sec <= 3); }
+      // footsteps + distant bell
+      const spd = Math.hypot(game.player.hv[0], game.player.hv[1]);
+      if (spd > 2 && game.player.grounded) {
+        stepAcc += dt;
+        if (stepAcc > 0.28) { stepAcc = 0; audio.sfx.step(); }
+      } else stepAcc = 0;
+      bellAcc += dt;
+      if (bellAcc > 60) { bellAcc = 0; audio.sfx.bell(); }
     }
     if (game.over) endNight();
   }

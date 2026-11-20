@@ -49,19 +49,21 @@ export function createAudio(getVolume) {
 
   const sfx = {
     pick: (carried = 1) => tone(660 + carried * 55, 0.14, { vol: 0.12, type: 'sine' }),
-    deposit: () => tone(440, 0.25, { vol: 0.12, type: 'triangle' }),
-    light: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.7, { vol: 0.12, type: 'triangle', delay: i * 0.1 })),
+    deposit: () => { tone(440, 0.25, { vol: 0.12, type: 'triangle' }); tone(660, 0.2, { vol: 0.07, type: 'sine', delay: 0.05 }); },
+    light: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.9, { vol: 0.12, type: 'triangle', delay: i * 0.08 })),
     pulse: () => { tone(180, 0.5, { vol: 0.16, type: 'sawtooth', slide: 500 }); tone(900, 0.4, { vol: 0.07, type: 'sine', slide: -600 }); },
-    hit: () => { tone(150, 0.35, { vol: 0.22, type: 'square', slide: -80 }); },
+    hit: () => { tone(150, 0.35, { vol: 0.22, type: 'square', slide: -80 }); tone(80, 0.4, { vol: 0.15, type: 'sawtooth', delay: 0.02 }); },
     jump: () => tone(300, 0.18, { vol: 0.1, type: 'sine', slide: 260 }),
-    dash: () => tone(500, 0.2, { vol: 0.09, type: 'sawtooth', slide: -300 }),
-    charm: () => [784, 988, 1175].forEach((f, i) => tone(f, 0.3, { vol: 0.1, type: 'square', delay: i * 0.07 })),
+    dash: () => { tone(500, 0.2, { vol: 0.09, type: 'sawtooth', slide: -300 }); tone(1000, 0.15, { vol: 0.05, type: 'sine', slide: -400, delay: 0.05 }); },
+    charm: () => [784, 988, 1175, 1480].forEach((f, i) => tone(f, 0.3, { vol: 0.1, type: 'square', delay: i * 0.07 })),
     steal: () => tone(700, 0.3, { vol: 0.12, type: 'triangle', slide: -450 }),
-    spawn: () => tone(110, 0.6, { vol: 0.14, type: 'sawtooth', slide: 40 }),
-    tick: (urgent) => tone(urgent ? 1200 : 900, 0.08, { vol: 0.1, type: 'square' }),
-    win: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.9, { vol: 0.13, type: 'triangle', delay: i * 0.14 })),
+    spawn: () => { tone(110, 0.6, { vol: 0.14, type: 'sawtooth', slide: 40 }); tone(55, 0.8, { vol: 0.08, type: 'sine', delay: 0.1 }); },
+    tick: (urgent) => tone(urgent ? 1200 : 900, 0.08, { vol: urgent ? 0.14 : 0.08, type: 'square' }),
+    win: () => [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.9, { vol: 0.13, type: 'triangle', delay: i * 0.12 })),
     lose: () => [392, 330, 262, 196].forEach((f, i) => tone(f, 0.8, { vol: 0.13, type: 'sine', delay: i * 0.2 })),
     click: () => tone(600, 0.06, { vol: 0.08, type: 'square' }),
+    step: () => tone(120 + Math.random() * 50, 0.05, { vol: 0.03, type: 'triangle' }),
+    bell: () => [440, 554, 660].forEach((f, i) => tone(f, 1.8, { vol: 0.05, type: 'sine', delay: i * 0.03, attack: 0.02 })),
   };
   return { ensure, setVolume, startMusic, stopMusic, sfx };
 }
