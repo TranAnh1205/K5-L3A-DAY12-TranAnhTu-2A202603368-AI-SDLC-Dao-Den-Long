@@ -57,8 +57,8 @@ function makeLantern(pos, id) {
   post.position.y = 1.6;
   const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.2, 12), std(0x4a3420));
   base.position.y = 0.1;
-  // lamp (lit = ffb347, off = 5B5F6E per palette)
-  const lampMat = new THREE.MeshLambertMaterial({ color: PAL.lampOff, emissive: 0x000000 });
+  // lamp cage: now TRANSPARENT when lit so the flame shows through brightly
+  const lampMat = new THREE.MeshLambertMaterial({ color: PAL.lampOff, emissive: 0x000000, transparent: true, opacity: 1 });
   const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1, 12), lampMat);
   lamp.position.y = 3.6;
   // vertical bars on lamp
@@ -69,29 +69,50 @@ function makeLantern(pos, id) {
     bar.position.set(Math.cos(a) * 0.6, 3.6, Math.sin(a) * 0.6);
     g.add(bar);
   }
-  const coreMat = new THREE.MeshBasicMaterial({ color: PAL.lampCore, transparent: true, opacity: 0 });
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), coreMat);
+  // inner FLAME (big emissive sphere) - super bright when lit
+  const flameMat = new THREE.MeshBasicMaterial({ color: PAL.lampCore, transparent: true, opacity: 0 });
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 12), flameMat);
+  flame.position.y = 3.6;
+  // bright white-hot core inside flame
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 8), coreMat);
   core.position.y = 3.6;
+  // flame "tongue" rising above
+  const tongueMat = new THREE.MeshBasicMaterial({ color: PAL.lampLit, transparent: true, opacity: 0 });
+  const tongue = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 8), tongueMat);
+  tongue.position.y = 3.95;
   const roof = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.55, 12), std(PAL.scarf));
   roof.position.y = 4.35;
   // decorative finial
   const finial = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), std(PAL.gold, { emissive: 0x6b5010 }));
   finial.position.y = 4.75;
-  const light = new THREE.PointLight(PAL.lampLit, 0, 26, 1.6);
+  // MUCH stronger point light
+  const light = new THREE.PointLight(PAL.lampLit, 0, 38, 1.4);
   light.position.y = 3.6;
-  // outer glow sphere (shows when lit)
-  const glowMat = new THREE.MeshBasicMaterial({ color: PAL.lampLit, transparent: true, opacity: 0 });
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(1.1, 14, 10), glowMat);
-  glow.position.y = 3.6;
+  // multi-layer outer glow spheres for lamp bloom effect
+  const glow1Mat = new THREE.MeshBasicMaterial({ color: PAL.lampLit, transparent: true, opacity: 0, depthWrite: false });
+  const glow1 = new THREE.Mesh(new THREE.SphereGeometry(1.4, 16, 12), glow1Mat); glow1.position.y = 3.6;
+  const glow2Mat = new THREE.MeshBasicMaterial({ color: PAL.lampCore, transparent: true, opacity: 0, depthWrite: false });
+  const glow2 = new THREE.Mesh(new THREE.SphereGeometry(2.2, 16, 12), glow2Mat); glow2.position.y = 3.6;
+  const glow3Mat = new THREE.MeshBasicMaterial({ color: 0xffd97a, transparent: true, opacity: 0, depthWrite: false });
+  const glow3 = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 12), glow3Mat); glow3.position.y = 3.6;
+  // VERTICAL LIGHT BEAM going up (visible from far)
+  const beamMat = new THREE.MeshBasicMaterial({ color: PAL.lampCore, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+  const beam = new THREE.Mesh(new THREE.ConeGeometry(2.5, 15, 16, 1, true), beamMat); beam.position.y = 11; beam.rotation.x = Math.PI;
+  // ground halo disc (light pool)
+  const haloDiscMat = new THREE.MeshBasicMaterial({ color: PAL.lampLit, transparent: true, opacity: 0, depthWrite: false });
+  const haloDisc = new THREE.Mesh(new THREE.CircleGeometry(4, 32), haloDiscMat);
+  haloDisc.rotation.x = -Math.PI / 2; haloDisc.position.y = 0.04;
+  // safe-zone ring
   const ringMat = new THREE.MeshBasicMaterial({ color: PAL.lampLit, transparent: true, opacity: 0, side: THREE.DoubleSide });
   const ring = new THREE.Mesh(new THREE.RingGeometry(TUNING.safe_radius - 0.1, TUNING.safe_radius, 64), ringMat);
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05;
-  // progress ring on the lamp (grows with deposited)
+  // progress ring
   const progMat = new THREE.MeshBasicMaterial({ color: PAL.lampCore, transparent: true, opacity: 0, side: THREE.DoubleSide });
   const prog = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.68, 32), progMat);
   prog.rotation.x = -Math.PI / 2; prog.position.y = 3.1;
-  g.add(base, post, lamp, core, roof, finial, light, glow, ring, prog);
-  g.userData = { id, lampMat, coreMat, light, ringMat, glowMat, progMat, lit: false };
+  g.add(base, post, lamp, flame, core, tongue, roof, finial, light, glow1, glow2, glow3, beam, haloDisc, ring, prog);
+  g.userData = { id, lampMat, flameMat, coreMat, tongueMat, light, ringMat, glow1Mat, glow2Mat, glow3Mat, beamMat, haloDiscMat, progMat, tongue, lit: false };
   return g;
 }
 

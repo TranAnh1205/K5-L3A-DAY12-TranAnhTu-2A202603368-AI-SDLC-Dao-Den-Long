@@ -483,13 +483,30 @@ function syncViews(t) {
     const v = world.lanterns.get(l.id); if (!v) continue;
     const u = v.userData, k = l.deposited / TUNING.lantern_cost;
     if (l.lit) lit++;
+    const flicker = 1 + Math.sin(t * 6 + l.pos[0]) * 0.12 + Math.sin(t * 13 + l.pos[2]) * 0.06;
+    // cage: lit => warm orange + translucent (so flame shows); off => dull grey opaque
     u.lampMat.color.setHex(l.lit ? PAL.lampLit : PAL.lampOff);
     u.lampMat.emissive.setHex(l.lit ? PAL.lampLit : 0x000000);
-    u.lampMat.emissiveIntensity = l.lit ? 0.9 + Math.sin(t * 3 + l.pos[0]) * 0.1 : 0;
-    u.coreMat.opacity = l.lit ? 1 : k * 0.55;
-    u.light.intensity = l.lit ? 7 + Math.sin(t * 4 + l.pos[0]) * 0.5 : k * 2.2;
-    u.ringMat.opacity = l.lit ? 0.22 : 0;
-    u.glowMat.opacity = l.lit ? 0.22 + Math.sin(t * 2 + l.pos[0]) * 0.05 : 0;
+    u.lampMat.emissiveIntensity = l.lit ? 1.5 * flicker : 0;
+    u.lampMat.opacity = l.lit ? 0.45 : 1;
+    // flame + white-hot core + tongue
+    u.flameMat.opacity = l.lit ? 0.95 * flicker : k * 0.4;
+    u.coreMat.opacity = l.lit ? 1 : 0;
+    u.tongueMat.opacity = l.lit ? 0.85 * flicker : 0;
+    u.tongue.scale.y = l.lit ? 0.8 + Math.sin(t * 8 + l.pos[0]) * 0.3 : 1;
+    // light: very bright when lit
+    u.light.intensity = l.lit ? 14 * flicker : k * 2.5;
+    u.light.color.setHex(l.lit ? PAL.lampLit : PAL.lampLit);
+    // multi-layer glow
+    u.glow1Mat.opacity = l.lit ? 0.5 * flicker : 0;
+    u.glow2Mat.opacity = l.lit ? 0.25 * flicker : 0;
+    u.glow3Mat.opacity = l.lit ? 0.12 * flicker : 0;
+    // vertical beam going up
+    u.beamMat.opacity = l.lit ? 0.08 + Math.sin(t * 2 + l.pos[0]) * 0.03 : 0;
+    // ground halo pool
+    u.haloDiscMat.opacity = l.lit ? 0.35 * flicker : 0;
+    // safe-zone ring
+    u.ringMat.opacity = l.lit ? 0.3 : 0;
     u.progMat.opacity = !l.lit && k > 0 ? 0.55 * k : 0;
   }
   for (const c of game.charms) {
@@ -516,40 +533,56 @@ function updateLeaves(t, dt) {
 const hudEl = { flames: $('flames'), timer: $('timer'), right: $('right'), prompt: $('prompt'), arrow: $('arrow'), charm: $('charm'), wind: $('wind'), dash: $('cd-dash'), pulse: $('cd-pulse'), minimap: $('minimap-c')?.getContext('2d') };
 function drawMinimap() {
   const ctx = hudEl.minimap; if (!ctx) return;
-  ctx.clearRect(0, 0, 140, 140);
+  const SZ = 160, C = SZ / 2;
+  ctx.clearRect(0, 0, SZ, SZ);
   const p = game.player.pos;
-  const R = 50; // meters shown on the minimap
-  const toXY = (x, z) => [70 + (x - p[0]) * 70 / R, 70 + (z - p[2]) * 70 / R];
-  // lanterns: filled if lit, hollow if not
+  const R = 60; // meters shown on the minimap
+  const toXY = (x, z) => [C + (x - p[0]) * C / R, C + (z - p[2]) * C / R];
+  // subtle grid rings
+  ctx.strokeStyle = 'rgba(242,193,78,0.12)'; ctx.lineWidth = 1;
+  for (let r = C / 3; r < C; r += C / 3) { ctx.beginPath(); ctx.arc(C, C, r, 0, Math.PI * 2); ctx.stroke(); }
+  // lit lanterns pulse
+  const t = performance.now() / 1000;
   for (const l of game.lanterns) {
     const [mx, my] = toXY(l.pos[0], l.pos[2]);
-    if (mx < 5 || mx > 135 || my < 5 || my > 135) continue;
-    ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2);
-    ctx.fillStyle = l.lit ? '#FFB347' : '#5B5F6E';
-    ctx.fill();
-    ctx.strokeStyle = '#FFE9B0'; ctx.lineWidth = 1; ctx.stroke();
+    if (mx < 5 || mx > SZ - 5 || my < 5 || my > SZ - 5) continue;
+    if (l.lit) {
+      const r = 6 + Math.sin(t * 3 + l.pos[0]) * 1;
+      ctx.beginPath(); ctx.arc(mx, my, r + 3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,179,71,0.3)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFB347'; ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#5B5F6E'; ctx.fill();
+      ctx.strokeStyle = '#8a8a8a'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
   }
-  // shades
   for (const s of game.shades) {
     const [mx, my] = toXY(s.pos[0], s.pos[2]);
-    if (mx < 5 || mx > 135 || my < 5 || my > 135) continue;
-    ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI * 2);
-    ctx.fillStyle = '#7A3CFF'; ctx.fill();
+    if (mx < 5 || mx > SZ - 5 || my < 5 || my > SZ - 5) continue;
+    ctx.beginPath(); ctx.arc(mx, my, s.state === 'chase' ? 4 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = s.state === 'stunned' ? '#6a5a9a' : s.state === 'chase' ? '#FF5A5F' : '#7A3CFF'; ctx.fill();
   }
-  // drifters
   for (const d of game.drifters) {
     const [mx, my] = toXY(d.pos[0], d.pos[2]);
-    if (mx < 5 || mx > 135 || my < 5 || my > 135) continue;
-    ctx.beginPath(); ctx.arc(mx, my, 2.5, 0, Math.PI * 2);
+    if (mx < 5 || mx > SZ - 5 || my < 5 || my > SZ - 5) continue;
+    ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI * 2);
     ctx.fillStyle = '#8FA3B8'; ctx.fill();
   }
-  // Mây at center with facing arrow
-  ctx.save(); ctx.translate(70, 70);
+  // Mây at center with facing arrow + glow
+  ctx.save(); ctx.translate(C, C);
+  ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(242,193,78,0.25)'; ctx.fill();
   const facing = Math.atan2(game.player.facing[0], game.player.facing[1]);
   ctx.rotate(-facing);
-  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 4); ctx.lineTo(-4, 4); ctx.closePath();
-  ctx.fillStyle = '#F2C14E'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(5, 5); ctx.lineTo(-5, 5); ctx.closePath();
+  ctx.fillStyle = '#FFE9B0'; ctx.fill();
+  ctx.strokeStyle = '#F2C14E'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.restore();
+  // compass N marker
+  ctx.fillStyle = 'rgba(242,193,78,0.6)'; ctx.font = 'bold 10px Quicksand, sans-serif';
+  ctx.textAlign = 'center'; ctx.fillText('N', C, 10);
 }
 function drawHud() {
   const p = game.player, lit = game.lanterns.filter((l) => l.lit).length;
