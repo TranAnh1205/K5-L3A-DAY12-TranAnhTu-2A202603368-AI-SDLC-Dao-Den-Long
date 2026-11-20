@@ -14,10 +14,17 @@ const NIGHT_INFO = {
 };
 
 // ---------------------------------------------------------------- settings (persisted)
-const settings = { volume: 0.6, sens: 1 };
-try { Object.assign(settings, JSON.parse(localStorage.getItem('ddl-settings') || '{}')); } catch { /* private mode */ }
+const DEFAULT_KEYS = { jump: 'Space', pulse: 'KeyF', dash: 'ShiftLeft', interact: 'KeyE', pause: 'Escape' };
+const settings = { volume: 0.6, sens: 1, reduceMotion: false, largeFont: false, keys: { ...DEFAULT_KEYS } };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('ddl-settings') || '{}')); settings.keys = { ...DEFAULT_KEYS, ...settings.keys }; } catch { /* private mode */ }
 const saveSettings = () => { try { localStorage.setItem('ddl-settings', JSON.stringify(settings)); } catch { /* ignore */ } };
 const audio = createAudio(() => settings.volume);
+
+function applyA11y() {
+  document.body.classList.toggle('reduce-motion', !!settings.reduceMotion);
+  document.body.classList.toggle('large-font', !!settings.largeFont);
+}
+applyA11y();
 
 // ---------------------------------------------------------------- renderer / scene
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -270,10 +277,20 @@ function endNight() {
 // ---------------------------------------------------------------- UI wiring
 const click = (id, fn) => $(id).addEventListener('click', () => { audio.ensure(); audio.sfx.click(); fn(); });
 let settingsBack = 'menu';
+function kbLabel(code) { return code.replace(/^Key/, '').replace(/^Digit/, '').replace('ShiftLeft', 'Shift').replace('ShiftRight', 'Shift'); }
+function refreshKbPanel() {
+  for (const action of Object.keys(DEFAULT_KEYS)) {
+    const el = $(`kb-${action}`);
+    if (el) { el.textContent = kbLabel(settings.keys[action]); el.classList.remove('listening'); }
+  }
+}
 function openSettings(from) {
   settingsBack = from;
   $('s-vol').value = Math.round(settings.volume * 100); $('s-sens').value = Math.round(settings.sens * 100);
   $('s-vol-v').textContent = `${Math.round(settings.volume * 100)}%`; $('s-sens-v').textContent = `${Math.round(settings.sens * 100)}%`;
+  $('s-reduce-motion').checked = !!settings.reduceMotion;
+  $('s-large-font').checked = !!settings.largeFont;
+  refreshKbPanel();
   showScreen('settings');
 }
 click('b-play', () => { total = 0; beginNight(1); });
@@ -293,12 +310,44 @@ click('b-rmenu', () => { state = 'menu'; showScreen('menu'); });
 click('b-dmenu', () => { state = 'menu'; showScreen('menu'); });
 $('s-vol').addEventListener('input', (e) => { settings.volume = e.target.value / 100; $('s-vol-v').textContent = `${e.target.value}%`; audio.setVolume(settings.volume); saveSettings(); });
 $('s-sens').addEventListener('input', (e) => { settings.sens = e.target.value / 100; $('s-sens-v').textContent = `${e.target.value}%`; saveSettings(); });
+$('s-reduce-motion').addEventListener('change', (e) => { settings.reduceMotion = e.target.checked; applyA11y(); saveSettings(); });
+$('s-large-font').addEventListener('change', (e) => { settings.largeFont = e.target.checked; applyA11y(); saveSettings(); });
+
+// Key rebinding
+let rebindAction = null;
+for (const action of Object.keys(DEFAULT_KEYS)) {
+  const el = $(`kb-${action}`);
+  if (!el) continue;
+  el.setAttribute('tabindex', '0');
+  el.setAttribute('role', 'button');
+  el.setAttribute('aria-label', `Phím ${action} — nhấn để thay đổi`);
+  const startRebind = () => {
+    if (rebindAction) { const prev = $(`kb-${rebindAction}`); if (prev) prev.classList.remove('listening'); }
+    rebindAction = action;
+    el.classList.add('listening');
+    el.textContent = '...';
+    $('kb-hint').textContent = `Nhấn phím mới cho "${action}". Esc để hủy.`;
+  };
+  el.addEventListener('click', startRebind);
+  el.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); startRebind(); } });
+}
+document.addEventListener('keydown', (e) => {
+  if (!rebindAction) return;
+  e.preventDefault(); e.stopPropagation();
+  if (e.code === 'Escape') { refreshKbPanel(); $('kb-hint').textContent = 'Hủy'; rebindAction = null; return; }
+  settings.keys[rebindAction] = e.code;
+  saveSettings();
+  $('kb-hint').textContent = `Đã đổi "${rebindAction}" → ${kbLabel(e.code)}`;
+  refreshKbPanel();
+  rebindAction = null;
+}, true);
+click('b-kb-reset', () => { settings.keys = { ...DEFAULT_KEYS }; saveSettings(); refreshKbPanel(); $('kb-hint').textContent = 'Đã về mặc định.'; });
 
 addEventListener('keydown', (e) => {
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
   if (e.repeat) return;
   keys.add(e.code);
-  if (e.code === 'Escape' || e.code === 'KeyP') { if (state === 'playing') pauseGame(); else if (state === 'paused') resumeGame(); }
+  if (e.code === settings.keys.pause || e.code === 'KeyP') { if (state === 'playing') pauseGame(); else if (state === 'paused') resumeGame(); }
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => { keys.clear(); if (state === 'playing') pauseGame(); });
@@ -309,11 +358,14 @@ addEventListener('mousemove', (e) => { if (dragging && state === 'playing') { ca
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 
 function readInput() {
+  const k = settings.keys;
   const x = (keys.has('KeyA') ? 1 : 0) - (keys.has('KeyD') ? 1 : 0);   // camera looks down +Z at yaw 0: screen-right is -X
   const z = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
   return {
-    move: [x, z], cam_yaw_deg: camYaw, jump: keys.has('Space'), interact: keys.has('KeyE'),
-    pulse: keys.has('KeyF') || keys.has('KeyQ'), dash: keys.has('ShiftLeft') || keys.has('ShiftRight'),
+    move: [x, z], cam_yaw_deg: camYaw,
+    jump: keys.has(k.jump), interact: keys.has(k.interact),
+    pulse: keys.has(k.pulse) || keys.has('KeyQ'),
+    dash: keys.has(k.dash) || keys.has('ShiftRight'),
   };
 }
 

@@ -39,9 +39,19 @@ const near = (a, b, eps, what = '') => { if (Math.abs(a - b) > eps) throw new Er
 const expect = (c, m) => { if (!c) throw new Error(m); };
 
 const checks = [];
+const asyncChecks = [];
 function check(group, req, how, fn) {
   let ok = false, detail;
-  try { detail = fn(); ok = true; } catch (e) { detail = e.message; }
+  try {
+    const r = fn();
+    if (r && typeof r.then === 'function') {
+      const entry = { group, req, how, ok: false, detail: 'pending' };
+      checks.push(entry);
+      asyncChecks.push(r.then((d) => { entry.ok = true; entry.detail = d; }, (e) => { entry.ok = false; entry.detail = e.message; }));
+      return;
+    }
+    detail = r; ok = true;
+  } catch (e) { detail = e.message; }
   checks.push({ group, req, how, ok, detail });
 }
 
@@ -228,6 +238,28 @@ check('Phần 2 · Đêm 3', 'Dốc leo lên tầng 1, vách đứng chặn, b�
   return `leo dốc 30° lên y=3; vách tầng 1 chặn ở z=12; bục (0,3,13) → đáp tầng 2 (y=6); tháp chuông chặn ở r=${Math.hypot(tp[0], tp[2]).toFixed(3)} (≥2)`;
 });
 
+// ======================================================= Phần 4: bench + leaderboard
+check('Phần 4 · Benchmark', 'bench.js chạy 5 s với 200 bóng, 100 đom đóm, 3 đèn → avg_fps ≥ 60 (headless không có DOM/render)', 'node src/bench.js --seed 1 --duration 5 --out …', () => {
+  const f = path.join(os.tmpdir(), 'ddl-bench.json');
+  const r = spawnSync(process.execPath, ['src/bench.js', '--seed', '1', '--duration', '5', '--out', f], { cwd: root, encoding: 'utf8' });
+  expect(r.status === 0, `exit ${r.status} ${r.stderr}`);
+  const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+  expect(j.avg_fps >= 60, `avg_fps=${j.avg_fps}`);
+  expect(typeof j.p1_low_fps === 'number', 'p1_low_fps');
+  expect(typeof j.frame_ms_p95 === 'number', 'frame_ms_p95');
+  return `avg_fps=${j.avg_fps} p1_low=${j.p1_low_fps} p95=${j.frame_ms_p95} ms load=${j.load_ms} ms`;
+});
+check('Phần 4 · Leaderboard', '--export-leaderboard ghi top-10 vào file; getTop trả về đúng', 'cli + leaderboard.js import', async () => {
+  const { addEntry, getTop } = await import('../src/leaderboard.js');
+  const f = path.join(os.tmpdir(), 'ddl-lb.json');
+  for (let i = 1; i <= 12; i++) addEntry({ name: `P${i}`, score: i * 10, night: 1, seed: i, reason: 'won' }, f);
+  const top = getTop(f);
+  expect(top.length === 10, `length ${top.length}`);
+  expect(top[0].score === 120, `top[0].score=${top[0].score}`);
+  expect(top[9].score === 30, `top[9].score=${top[9].score}`);
+  return `top-10 từ 12 lần chơi: điểm ${top.map((e) => e.score).join(', ')}`;
+});
+
 // ======================================================= Hiệu năng & tất định
 check('Hiệu năng', 'Một Đêm đầy đủ (21.600 tick) chạy headless ≤ 30 s', 'CLI, 3 đêm, lửa 999 để không kết thúc sớm', () => {
   const out = [];
@@ -251,6 +283,8 @@ check('Tất định', 'Cùng seed/scenario/inputs → output giống hệt, c�
   }
   return out.join('; ');
 });
+
+await Promise.all(asyncChecks);
 
 const groups = [...new Set(checks.map((c) => c.group))];
 const md = [

@@ -14,8 +14,10 @@
     --sky: #0E1430; --sky-2: #1B2350; --sky-3: #2a1f4a;
     --sand: #C9B48A; --scarf: #C8102E;
   }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky); color: var(--text); font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif; user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky); color: var(--text); font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif; user-select: none; font-size: 18px; }
   canvas { display: block; }
+  body.large-font { font-size: 22px; }
+  body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 
   /* ---------- HUD ---------- */
   .hud { position: fixed; pointer-events: none; text-shadow: 0 1px 4px #000c; }
@@ -299,6 +301,21 @@
     font-family: "Dancing Script", cursive; font-size: 22px;
     color: var(--lamp); font-style: italic; margin-top: -10px;
   }
+
+  /* ---------- Accessibility / Settings ---------- */
+  .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0; }
+  .toggle-row input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--gold); }
+  details { margin: 8px 0; color: var(--text); }
+  details summary { cursor: pointer; font-size: 1rem; padding: 6px 0; }
+  .keybindings { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin: 8px 0; max-width: 320px; }
+  .kb-row { display: contents; }
+  .kb-row span { align-self: center; font-size: 0.9rem; color: #ccc; }
+  kbd { display: inline-block; padding: 3px 10px; border-radius: 6px; border: 1.5px solid var(--gold); background: rgba(242,193,78,0.15);
+        color: var(--gold); font-family: monospace; font-size: 0.9rem; cursor: pointer; min-width: 70px; text-align: center; transition: background 0.2s; }
+  kbd:hover, kbd:focus { background: rgba(242,193,78,0.3); outline: 2px solid var(--gold); }
+  kbd.listening { background: rgba(255,90,95,0.3); border-color: var(--danger); color: var(--danger); animation: none; }
+  .kb-hint { font-size: 0.8rem; color: #aaa; margin: 4px 0; min-height: 1.2em; }
+  button.small { padding: 6px 14px; font-size: 0.85rem; }
 </style>
 <script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js" } }</script>
 </head>
@@ -345,8 +362,23 @@
 
 <div class="screen" id="settings">
   <h2>⚙️ Cài đặt</h2>
-  <label>🔊 Âm lượng <input type="range" id="s-vol" min="0" max="100" step="1"><span id="s-vol-v"></span></label>
-  <label>🖱️ Độ nhạy chuột <input type="range" id="s-sens" min="20" max="300" step="5"><span id="s-sens-v"></span></label>
+  <label>🔊 Âm lượng <input type="range" id="s-vol" min="0" max="100" step="1" aria-label="Âm lượng"><span id="s-vol-v"></span></label>
+  <label>🖱️ Độ nhạy chuột <input type="range" id="s-sens" min="20" max="300" step="5" aria-label="Độ nhạy chuột"><span id="s-sens-v"></span></label>
+  <label class="toggle-row"><input type="checkbox" id="s-reduce-motion" aria-label="Giảm chuyển động"> 🕐 Giảm chuyển động</label>
+  <label class="toggle-row"><input type="checkbox" id="s-large-font" aria-label="Chữ lớn"> 🔤 Chữ lớn (1.25×)</label>
+  <details>
+    <summary>⌨️ Phím tắt</summary>
+    <div class="keybindings" id="keybindings-panel" role="group" aria-label="Phím tắt">
+      <div class="kb-row"><span>Chạy</span><span>WASD</span></div>
+      <div class="kb-row"><span>Nhảy</span><kbd id="kb-jump" data-action="jump">Space</kbd></div>
+      <div class="kb-row"><span>Tỏa sáng</span><kbd id="kb-pulse" data-action="pulse">F</kbd></div>
+      <div class="kb-row"><span>Lướt</span><kbd id="kb-dash" data-action="dash">Shift</kbd></div>
+      <div class="kb-row"><span>Nạp đèn</span><kbd id="kb-interact" data-action="interact">E</kbd></div>
+      <div class="kb-row"><span>Tạm dừng</span><kbd id="kb-pause" data-action="pause">Escape</kbd></div>
+    </div>
+    <p class="kb-hint" id="kb-hint" aria-live="polite"></p>
+    <button id="b-kb-reset" class="sec small">↺ Mặc định</button>
+  </details>
   <button id="b-sback">← Quay lại</button>
 </div>
 
@@ -367,7 +399,7 @@
   <button id="b-dmenu">🏮 Về menu</button>
 </div>
 
-<div id="ver">v1.1 · Đảo Đèn Lồng</div>
+<div id="ver">v1.0.0 · Đảo Đèn Lồng</div>
 <script type="module" src="./src/client.js"></script>
 </body>
 </html>

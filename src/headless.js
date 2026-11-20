@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Headless runner — Test Contract v1.1.
-// node src/headless.js --seed <int> --night 1|2|3 [--scenario f] [--inputs f] --ticks <int> --out <f.jsonl> [--snapshot-every n]
+// Headless runner — Test Contract v1.3.
+// node src/headless.js --seed <int> --night 1|2|3 [--scenario f] [--inputs f] --ticks <int> --out <f.jsonl> [--snapshot-every n] [--export-leaderboard f [--player-name name]]
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { Game } from './sim.js';
+import { addEntry } from './leaderboard.js';
 
 class FormatError extends Error {}
 
@@ -30,6 +31,8 @@ function parseArgs(argv) {
   const opts = {
     seed: int('seed', true), night: int('night', true), ticks: int('ticks', true),
     snapshotEvery: int('snapshot-every', false, 10), out: a.out, scenario: a.scenario, inputs: a.inputs,
+    exportLeaderboard: a['export-leaderboard'] ?? null,
+    playerName: a['player-name'] ?? 'anonymous',
   };
   if (!opts.out) throw new Error('--out is required');
   if (![1, 2, 3].includes(opts.night)) throw new Error(`night ${opts.night} not supported (1, 2 or 3)`);
@@ -132,7 +135,14 @@ function main() {
   try {
     const scenario = opts.scenario ? validateScenario(readJson(opts.scenario)) : null;
     const frames = opts.inputs ? validateInputs(readJson(opts.inputs)) : [];
-    fs.writeFileSync(opts.out, run({ seed: opts.seed, night: opts.night, scenario, frames, ticks: opts.ticks, snapshotEvery: opts.snapshotEvery }));
+    const output = run({ seed: opts.seed, night: opts.night, scenario, frames, ticks: opts.ticks, snapshotEvery: opts.snapshotEvery });
+    fs.writeFileSync(opts.out, output);
+    if (opts.exportLeaderboard) {
+      const lines = output.trim().split('\n').map((l) => JSON.parse(l));
+      const end = lines.at(-1);
+      const top = addEntry({ name: opts.playerName, score: end.score, night: opts.night, seed: opts.seed, reason: end.state }, opts.exportLeaderboard);
+      process.stdout.write(JSON.stringify(top, null, 2) + '\n');
+    }
   } catch (e) {
     fail(e.message, e instanceof FormatError ? 2 : 1);
   }
