@@ -97,7 +97,7 @@ Node v24.15.0, win32 x64. Mỗi dòng chạy qua CLI headless thật (`node src/
 
 | Yêu cầu | Cách kiểm chứng | Kết quả | Chi tiết |
 |---|---|---|---|
-| Một Đêm đầy đủ (21.600 tick) chạy headless ≤ 30 s | CLI, 3 đêm, lửa 999 để không kết thúc sớm | ĐẠT | Đêm 1: 347 ms (18000 tick); Đêm 2: 595 ms (19800 tick); Đêm 3: 691 ms (21600 tick). Máy: 11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz, Node v24.15.0 |
+| Một Đêm đầy đủ (21.600 tick) chạy headless ≤ 30 s | CLI, 3 đêm, lửa 999 để không kết thúc sớm | ĐẠT | Đêm 1: 329 ms (18000 tick); Đêm 2: 403 ms (19800 tick); Đêm 3: 459 ms (21600 tick). Máy: 11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz, Node v24.15.0 |
 
 ## Tất định
 
