@@ -1,0 +1,12 @@
+{
+ "random_motes": false,
+ "random_shades": false,
+ "random_drifters": false,
+ "motes": [],
+ "shades": [],
+ "drifters": [],
+ "charms": [],
+ "player": {
+  "pulse_cd_ticks": 100
+ }
+}
