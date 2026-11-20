@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đảo Đèn Lồng</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #120a1f; font-family: system-ui, sans-serif; color: #ffe9c4; }
+  #hud { position: fixed; top: 12px; left: 12px; background: rgba(20,10,35,.6); padding: 10px 14px; border-radius: 10px; line-height: 1.6; font-size: 15px; pointer-events: none; }
+  #hud b { color: #ffb347; }
+  #hint { position: fixed; bottom: 18px; width: 100%; text-align: center; font-size: 15px; pointer-events: none; text-shadow: 0 0 6px #000; }
+  #help { position: fixed; top: 12px; right: 12px; background: rgba(20,10,35,.6); padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+  #overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: rgba(10,5,20,.7); font-size: 22px; text-align: center; }
+  #overlay h1 { font-size: 46px; margin: 0 0 10px; color: #ffb347; }
+</style>
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js" } }</script>
+</head>
+<body>
+<div id="hud"></div>
+<div id="help">WASD: chạy · Space: nhảy · E: nạp đèn<br>F: tỏa sáng · Kéo chuột / ← →: xoay camera<br>R: chơi lại</div>
+<div id="hint"></div>
+<div id="overlay"><h1 id="ov-title"></h1><div id="ov-text"></div><p>Nhấn <b>R</b> để chơi lại</p></div>
+<script type="module" src="/src/client.js"></script>
+</body>
+</html>
