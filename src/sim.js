@@ -281,8 +281,8 @@ export class Game {
       if (fl !== null && fl >= y0 - R.step_down) p.pos[1] = fl;
       else { p.grounded = false; p.vy = 0; }
     } else if (!(dashing)) {
+      p.pos[1] = y0 + p.vy * DT - 0.5 * R.gravity * DT * DT; // exact constant-acceleration step
       p.vy -= R.gravity * DT;
-      p.pos[1] = y0 + p.vy * DT;
       if (fl !== null && p.pos[1] <= fl && p.vy <= 0) { p.pos[1] = fl; p.vy = 0; p.grounded = true; p.launch = null; }
     }
 
