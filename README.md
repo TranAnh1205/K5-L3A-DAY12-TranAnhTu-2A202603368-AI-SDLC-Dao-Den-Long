@@ -75,9 +75,26 @@ Khai báo ở [game.contract.json](game.contract.json) (số chuẩn của TICKE
 - `.github/workflows/ci.yml`: CI chạy test và proof trên Ubuntu và macOS mỗi lần push.
 
 ## Sáng tạo của tôi
-Chỉ nằm ở phần hiển thị và âm thanh (`src/client.js`, `src/scene.js`, `src/audio.js`), không đổi đầu ra headless; `npm test` và `npm run proof` vẫn đạt.
-- **Đèn trên nón lá** sáng theo số đom đóm đang mang, bùng lên khi Tỏa Sáng; khăn Mây đổi vàng khi có Bùa Gió.
-- **Đảo sáng dần** theo công thức chuẩn 0,15 + 0,55 × tỷ lệ đèn sáng, cộng một cái chớp khi vừa thắp đèn.
-- **Vòng sáng mờ** quanh đèn đã sáng cho thấy vùng an toàn 6 m.
-- **Âm thanh tổng hợp bằng WebAudio** (không dùng file): nhạc nền đêm và hiệu ứng cho mọi sự kiện, tiếng "ting" cao dần theo số đom đóm đang mang.
-- **Lá bay báo gió** ở Đêm 3 và hiệu ứng vòng sáng lan khi Tỏa Sáng.
+Chỉ nằm ở phần hiển thị và âm thanh (`src/client.js`, `src/scene.js`, `src/audio.js`), không đổi đầu ra headless; `npm test` và `npm run proof` vẫn đạt (kiểm bằng so sánh hash MD5 của file `.jsonl` trước/sau).
+
+**Nhân vật Mây:** mô hình chi tiết với tay chân riêng vung nhịp khi chạy, chân co khi nhảy, nón lá có vành rộng và chóp nhọn, đèn lồng nhỏ treo đong đưa theo chuyển động, khăn quàng (sash) đổi vàng khi có Bùa Gió và có hào quang vàng xoay quanh người. Mắt đổi kích thước theo trạng thái (lo lắng khi ≤ 1 lửa, vui khi thắp đèn). Bóng đổ tròn dưới chân theo độ cao.
+
+**Thế giới:** bầu trời sao thật với 600 ngôi sao, mặt trăng có quầng nhấp nháy, **sao băng ngẫu nhiên** bay qua bầu trời mỗi 25-50 giây, **50 con đom đóm trang trí** lượn quanh đảo (không nhặt được, không ảnh hưởng gameplay). Thêm cỏ, hoa 4 màu quanh các bụi. Mỗi đèn có mái, cột gỗ, 4 thanh dọc, finial vàng, và **vòng tròn tiến độ** mờ dưới thể hiện số đom đóm đã nạp.
+
+**Hiệu ứng khi chơi:**
+- Hạt sáng bay lên khi thắp đèn hoặc Tỏa Sáng (particle pool, không tốn tài nguyên).
+- Số điểm bay lên mỗi khi ghi điểm (+10, +100, +5), chiếu từ không gian 3D ra màn hình.
+- Rung màn hình (screen shake) khi bị chạm, nổ Tỏa Sáng, rơi khỏi đảo.
+- Camera smooth: nội suy vị trí (lerp), FOV tăng nhẹ khi Lướt, cuộn chuột để zoom gần/xa.
+- Bóng Mực có tua khói cuộn, mắt đổi vàng khi đang `chase`, ngôi sao vàng xoay trên đầu khi `stunned`.
+- Gió Lạc là dải lụa 10 phân đoạn uốn lượn, có đốm vàng lấp lánh chạy dọc khi mang đồ cướp.
+
+**UI:**
+- Font **Quicksand** + **Be Vietnam Pro** từ Google Fonts cho tiêu đề và chữ Việt.
+- **Minimap tròn** góc dưới trái bán kính 50 m: hiện các đèn (vàng = đã thắp, xám = chưa), Bóng Mực tím, Gió Lạc xám-xanh, Mây là tam giác vàng chỉ hướng đang quay mặt.
+
+**Âm thanh:**
+- Nhạc nền 16 nhịp với âm trầm 110 Hz làm nền.
+- Hiệu ứng mới: tiếng bước chân (nhỏ, ngẫu nhiên tần số, nhịp theo tốc độ), tiếng chuông xa mỗi 60 s, tiếng tick to hơn khi ≤ 3 s cuối.
+
+Chi tiết có bằng chứng ảnh ở `docs/proof/phase-2/gui-upgrade-*.jpg`. Hash MD5 của headless output giống hệt trước và sau (verify bằng `md5sum out/*.jsonl`).
