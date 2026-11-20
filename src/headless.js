@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Headless runner — Test Contract v1.0.
-// node src/headless.js --seed <int> --night 1 [--scenario f] [--inputs f] --ticks <int> --out <f.jsonl> [--snapshot-every n]
+// Headless runner — Test Contract v1.1.
+// node src/headless.js --seed <int> --night 1|2|3 [--scenario f] [--inputs f] --ticks <int> --out <f.jsonl> [--snapshot-every n]
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { Game } from './sim.js';
@@ -18,7 +18,7 @@ function parseArgs(argv) {
     const k = argv[i];
     if (!k.startsWith('--')) throw new Error(`unexpected argument ${k}`);
     const v = argv[i + 1];
-    if (v === undefined || v.startsWith('--')) throw new Error(`missing value for ${k}`);
+    if (v === undefined || (v.startsWith('--') && !/^--?\d/.test(v))) throw new Error(`missing value for ${k}`);
     a[k.slice(2)] = v;
     i++;
   }
@@ -28,16 +28,11 @@ function parseArgs(argv) {
     return parseInt(a[name], 10);
   };
   const opts = {
-    seed: int('seed', true),
-    night: int('night', true),
-    ticks: int('ticks', true),
-    snapshotEvery: int('snapshot-every', false, 10),
-    out: a.out,
-    scenario: a.scenario,
-    inputs: a.inputs,
+    seed: int('seed', true), night: int('night', true), ticks: int('ticks', true),
+    snapshotEvery: int('snapshot-every', false, 10), out: a.out, scenario: a.scenario, inputs: a.inputs,
   };
   if (!opts.out) throw new Error('--out is required');
-  if (opts.night !== 1) throw new Error(`night ${opts.night} not supported (only 1)`);
+  if (![1, 2, 3].includes(opts.night)) throw new Error(`night ${opts.night} not supported (1, 2 or 3)`);
   if (opts.ticks < 0) throw new Error('--ticks must be >= 0');
   if (opts.snapshotEvery < 1) throw new Error('--snapshot-every must be >= 1');
   return opts;
@@ -51,19 +46,20 @@ function readJson(file) {
 
 const isNum = (x) => typeof x === 'number' && Number.isFinite(x);
 const isVec3 = (x) => Array.isArray(x) && x.length === 3 && x.every(isNum);
+const isNat = (x) => Number.isInteger(x) && x >= 0;
 
 export function validateInputs(obj) {
   if (!obj || typeof obj !== 'object' || !Array.isArray(obj.frames)) throw new FormatError('inputs: "frames" array required');
   let last = -1;
   for (const [i, f] of obj.frames.entries()) {
     if (!f || typeof f !== 'object') throw new FormatError(`inputs: frame ${i} is not an object`);
-    if (!Number.isInteger(f.tick) || f.tick < 0) throw new FormatError(`inputs: frame ${i} tick must be a non-negative integer`);
+    if (!isNat(f.tick)) throw new FormatError(`inputs: frame ${i} tick must be a non-negative integer`);
     if (f.tick <= last) throw new FormatError(`inputs: frame ${i} tick ${f.tick} not strictly increasing`);
     last = f.tick;
     if ('move' in f && !(Array.isArray(f.move) && f.move.length === 2 && f.move.every((v) => isNum(v) && v >= -1 && v <= 1)))
       throw new FormatError(`inputs: frame ${i} move must be [x,z] with values in [-1,1]`);
     if ('cam_yaw_deg' in f && !isNum(f.cam_yaw_deg)) throw new FormatError(`inputs: frame ${i} cam_yaw_deg must be a number`);
-    for (const b of ['jump', 'interact', 'pulse', 'dash'])
+    for (const b of ['jump', 'interact', 'pulse', 'dash', 'pause'])
       if (b in f && typeof f[b] !== 'boolean') throw new FormatError(`inputs: frame ${i} ${b} must be boolean`);
   }
   return obj.frames;
@@ -72,42 +68,52 @@ export function validateInputs(obj) {
 export function validateScenario(s) {
   if (!s || typeof s !== 'object' || Array.isArray(s)) throw new FormatError('scenario: must be an object');
   const bad = (m) => { throw new FormatError(`scenario: ${m}`); };
+  const arr = (k) => { if (s[k] !== undefined && !Array.isArray(s[k])) bad(`${k} must be an array`); };
   if (s.player !== undefined) {
     if (typeof s.player !== 'object' || s.player === null) bad('player must be an object');
     if (s.player.pos !== undefined && !isVec3(s.player.pos)) bad('player.pos must be [x,y,z]');
-    for (const k of ['carried', 'flames'])
-      if (s.player[k] !== undefined && !(Number.isInteger(s.player[k]) && s.player[k] >= 0)) bad(`player.${k} must be a non-negative integer`);
+    for (const k of ['carried', 'flames', 'invuln_ticks', 'dash_cd_ticks', 'pulse_cd_ticks', 'charm_ticks'])
+      if (s.player[k] !== undefined && !isNat(s.player[k])) bad(`player.${k} must be a non-negative integer`);
   }
-  for (const k of ['random_motes', 'random_shades']) if (s[k] !== undefined && typeof s[k] !== 'boolean') bad(`${k} must be boolean`);
-  if (s.motes !== undefined && !(Array.isArray(s.motes) && s.motes.every(isVec3))) bad('motes must be an array of [x,y,z]');
-  if (s.shades !== undefined) {
-    if (!Array.isArray(s.shades)) bad('shades must be an array');
-    for (const sh of s.shades) {
-      if (!sh || !isVec3(sh.pos)) bad('each shade needs pos [x,y,z]');
-      if (sh.id !== undefined && typeof sh.id !== 'string') bad('shade id must be a string');
-    }
+  for (const k of ['random_motes', 'random_shades', 'random_drifters', 'wind_enabled'])
+    if (s[k] !== undefined && typeof s[k] !== 'boolean') bad(`${k} must be boolean`);
+  for (const k of ['motes', 'shades', 'lanterns', 'drifters', 'charms']) arr(k);
+  for (const m of s.motes || []) if (!isVec3(m) && !(m && isVec3(m.pos))) bad('each mote must be [x,y,z] or {pos}');
+  for (const sh of s.shades || []) {
+    if (!sh || !isVec3(sh.pos)) bad('each shade needs pos [x,y,z]');
+    if (sh.id !== undefined && typeof sh.id !== 'string') bad('shade id must be a string');
+    if (sh.state !== undefined && !['spawning', 'wander', 'chase', 'recoil', 'stunned'].includes(sh.state)) bad(`shade state ${sh.state} unknown`);
+    if (sh.state_ticks_left !== undefined && !isNat(sh.state_ticks_left)) bad('shade state_ticks_left must be a non-negative integer');
   }
-  if (s.lanterns !== undefined) {
-    if (!Array.isArray(s.lanterns)) bad('lanterns must be an array');
-    for (const l of s.lanterns) {
-      if (!l || typeof l.id !== 'string') bad('each lantern needs a string id');
-      if (l.pos !== undefined && !isVec3(l.pos)) bad(`lantern ${l.id} pos must be [x,y,z]`);
-      if (l.deposited !== undefined && !(Number.isInteger(l.deposited) && l.deposited >= 0)) bad(`lantern ${l.id} deposited must be a non-negative integer`);
-      if (l.lit !== undefined && typeof l.lit !== 'boolean') bad(`lantern ${l.id} lit must be boolean`);
-    }
+  for (const d of s.drifters || []) {
+    if (!d || !isVec3(d.pos)) bad('each drifter needs pos [x,y,z]');
+    if (d.state !== undefined && !['idle', 'chase', 'flee'].includes(d.state)) bad(`drifter state ${d.state} unknown`);
+    for (const k of ['state_ticks_left', 'stolen']) if (d[k] !== undefined && !isNat(d[k])) bad(`drifter ${k} must be a non-negative integer`);
+  }
+  for (const c of s.charms || []) {
+    if (!c || typeof c !== 'object') bad('each charm must be an object');
+    if (c.pos !== undefined && !isVec3(c.pos)) bad('charm pos must be [x,y,z]');
+    if (c.available !== undefined && typeof c.available !== 'boolean') bad('charm available must be boolean');
+  }
+  for (const l of s.lanterns || []) {
+    if (!l || typeof l.id !== 'string') bad('each lantern needs a string id');
+    if (l.pos !== undefined && !isVec3(l.pos)) bad(`lantern ${l.id} pos must be [x,y,z]`);
+    if (l.deposited !== undefined && !isNat(l.deposited)) bad(`lantern ${l.id} deposited must be a non-negative integer`);
+    if (l.lit !== undefined && typeof l.lit !== 'boolean') bad(`lantern ${l.id} lit must be boolean`);
   }
   if (s.time_left_s !== undefined && !(isNum(s.time_left_s) && s.time_left_s >= 0)) bad('time_left_s must be a non-negative number');
   return s;
 }
 
-export function run({ seed, scenario = null, frames = [], ticks, snapshotEvery = 10 }) {
-  const game = new Game({ seed, scenario });
+export function run({ seed, night = 1, scenario = null, frames = [], ticks, snapshotEvery = 10 }) {
+  const game = new Game({ seed, night, scenario });
   const lines = [];
   const push = (o) => lines.push(JSON.stringify(o));
   push(game.snapshot());
-  const input = { move: [0, 0], cam_yaw_deg: 0, jump: false, interact: false, pulse: false, dash: false };
+  push({ type: 'event', tick: 0, name: 'night_start', data: { night } });
+  const input = { move: [0, 0], cam_yaw_deg: 0, jump: false, interact: false, pulse: false, dash: false, pause: false };
   let fi = 0;
-  for (let k = 0; k < ticks && game.state === 'playing'; k++) {
+  for (let k = 0; k < ticks && !game.over; k++) {
     while (fi < frames.length && frames[fi].tick === k) { Object.assign(input, frames[fi]); fi++; }
     for (const e of game.step(input)) push(e);
     if (game.tick % snapshotEvery === 0) push(game.snapshot());
@@ -122,8 +128,7 @@ function main() {
   try {
     const scenario = opts.scenario ? validateScenario(readJson(opts.scenario)) : null;
     const frames = opts.inputs ? validateInputs(readJson(opts.inputs)) : [];
-    const out = run({ seed: opts.seed, scenario, frames, ticks: opts.ticks, snapshotEvery: opts.snapshotEvery });
-    fs.writeFileSync(opts.out, out);
+    fs.writeFileSync(opts.out, run({ seed: opts.seed, night: opts.night, scenario, frames, ticks: opts.ticks, snapshotEvery: opts.snapshotEvery }));
   } catch (e) {
     fail(e.message, e instanceof FormatError ? 2 : 1);
   }
