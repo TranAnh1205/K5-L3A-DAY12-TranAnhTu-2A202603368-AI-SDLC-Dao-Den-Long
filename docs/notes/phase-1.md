@@ -49,18 +49,11 @@ Hạn chế đã biết:
 ## Nhật ký dùng AI
 | Bước | Công cụ | Việc | Ghi chú |
 |---|---|---|---|
-| 1 | Claude Code (Opus) | Đọc tài liệu lab, tóm tắt | Ngữ cảnh: 6 file md |
-| 2 | Claude Code | Viết `sim.js`, `headless.js`, tuning, contract | Một lượt viết, sau đó sửa 2 lỗi nhỏ |
-| 3 | Claude Code | 19 test node:test | Phát hiện 1 test sai: ván mặc định thua trước khi Bóng Mực mới kịp sinh. Sửa scenario test (lửa 999), không sửa game |
-| 4 | Claude Code | Client Three.js, kiểm bằng browser pane + ảnh | Phát hiện tab bị ẩn nên rAF không chạy; thêm hook `__ddl` để kiểm chứng |
-| 5 | Claude Code | Bot + `proof.js`, harness (CLAUDE.md, Stop hook, skill verify, CI) | |
-
-**Token / chi phí ước tính Phase 1:** khoảng 120k token input (phần lớn là đọc lại ngữ cảnh) và 35k token output. Với giá Opus, ước tính vài USD.
-Cách tiết kiệm token:
-- Viết mỗi file một lần, đầy đủ, rồi kiểm chứng bằng test thay vì đọc lại file.
-- Kiểm tra GUI bằng ảnh thu nhỏ 0.6.
-- Không dùng subagent.
-- Đầu ra proof nhỏ (snapshot mỗi 600 tick).
+| 1 | AI Code assistant | Đọc tài liệu lab, tóm tắt | Ngữ cảnh: 6 file md |
+| 2 | AI Code assistant | Viết `sim.js`, `headless.js`, tuning, contract | Một lượt viết, sau đó sửa 2 lỗi nhỏ |
+| 3 | AI Code assistant | 19 test node:test | Phát hiện 1 test sai: ván mặc định thua trước khi Bóng Mực mới kịp sinh. Sửa scenario test (lửa 999), không sửa game |
+| 4 | AI Code assistant | Client Three.js, kiểm bằng browser pane + ảnh | Phát hiện tab bị ẩn nên rAF không chạy; thêm hook `__ddl` để kiểm chứng |
+| 5 | AI Code assistant | Bot + `proof.js`, harness (CLAUDE.md, Stop hook, skill verify, CI) | |
 
 ## Lỗi AI và chỉnh harness
 - **Đếm thời gian sai:** lần đầu agent trừ thời gian ở cuối bước, nên khi thắng sớm `time_left` lệch 1 tick. Đã sửa: trừ ở đầu bước. Đã thêm quy ước "time_left = duration − steps/60" vào test `snapshots every N ticks`.

@@ -4,10 +4,6 @@
 **Trần Anh Tú** (2A202603368)
 Day 12 — AI SDLC Lab — K5-L3A cohort
 
-## Developed with
-- [Claude Sonnet 4.6](https://claude.ai) — Anthropic AI assistant
-  (Gameplay design, simulation engine, all ticket phases)
-
 ## Third-party libraries
 - [Three.js](https://threejs.org/) v0.160.0 — MIT License
   © 2010–2024 three.js authors

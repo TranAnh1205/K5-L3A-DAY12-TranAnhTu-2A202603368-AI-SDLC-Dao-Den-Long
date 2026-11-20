@@ -57,10 +57,10 @@ Chỉ ở phía hiển thị, không đổi đầu ra headless: đèn nhỏ trê
 
 | Bước | Công cụ | Việc | Ghi chú |
 |---|---|---|---|
-| 1 | Claude Code (Sonnet 5.5) | Đọc ticket, lập danh sách giả định, thiết kế lại sim theo 11 giai đoạn của ticket | Viết `maps.js`, `tuning.js`, `sim.js` một lượt |
-| 2 | Claude Code | Viết 43 test sim + cập nhật test CLI | 13 test đỏ lần đầu, phân tích từng cái (xem dưới) |
-| 3 | Claude Code | Client (3 file) và kiểm bằng pane trình duyệt | Chụp ảnh, đo FPS thật |
-| 4 | Claude Code | `proof.js` mới + scenario; cập nhật CLAUDE.md và skills | |
+| 1 | AI Code assistant | Đọc ticket, lập danh sách giả định, thiết kế lại sim theo 11 giai đoạn của ticket | Viết `maps.js`, `tuning.js`, `sim.js` một lượt |
+| 2 | AI Code assistant | Viết 43 test sim + cập nhật test CLI | 13 test đỏ lần đầu, phân tích từng cái (xem dưới) |
+| 3 | AI Code assistant | Client (3 file) và kiểm bằng pane trình duyệt | Chụp ảnh, đo FPS thật |
+| 4 | AI Code assistant | `proof.js` mới + scenario; cập nhật CLAUDE.md và skills | |
 
 **Token/chi phí ước tính Phase 2:** khoảng 250–300k token input (phần lớn là ngữ cảnh lặp lại, ngữ cảnh dài vì cùng phiên với Phase 1) và 70–80k token output; ước lượng thô, chưa đo bằng công cụ. Tiết kiệm: viết mỗi file một lượt rồi để test báo lỗi; ảnh chụp thu nhỏ 0,5–0,6; không dùng subagent; proof sinh tự động thay vì viết tay.
 
