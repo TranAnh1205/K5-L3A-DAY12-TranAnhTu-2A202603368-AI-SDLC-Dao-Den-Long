@@ -1,6 +1,6 @@
 # Đảo Đèn Lồng
 
-> Video demo: *(sẽ thêm ở Phase 4)* · Bài lab Day 12 AI SDLC. Đề bài: [LAB.md](LAB.md)
+> **[Video demo](docs/demo/demo.mp4)** · Bài lab Day 12 AI SDLC. Đề bài: [LAB.md](LAB.md)
 
 Game 3D góc nhìn thứ ba. Mây, người giữ đèn nhỏ tuổi đội nón lá, chạy khắp ba hòn đảo (Đảo Bến, Đảo Cau, Đảo Chuông) gom đom đóm để thắp lại các Đèn Lồng Lớn trước khi trời sáng, đồng thời né Bóng Mực tím đen, Gió Lạc và vực sâu.
 
