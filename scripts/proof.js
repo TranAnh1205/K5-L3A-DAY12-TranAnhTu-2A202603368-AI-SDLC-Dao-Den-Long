@@ -52,8 +52,8 @@ check('P1 hồi quy', 'Chơi Đêm 1 từ đầu đến thắng (5 đèn) với 
   fs.writeFileSync(path.join(scDir, 'bot_night1.inputs.json'), JSON.stringify({ frames: bot.frames }));
   const { lines } = cli('p1_full_win', { seed: bot.seed, frames: bot.frames, ticks: 18000, every: 600 });
   const e = end(lines);
-  expect(e.state === 'won' && ev(lines, 'lantern_lit').length === 5, `state ${e.state}`);
-  expect(ev(lines, 'game_over')[0].data.reason === 'all_lit', 'reason');
+  expect(e.state === 'won', `state ${e.state}`);
+  expect(ev(lines, 'game_over')[0].data.reason === 'dawn_survived', 'reason'); // Phase 3: all_lit removed; win at dawn with >=ceil(0.6*n) lit
   return `seed ${bot.seed}: thắng ở tick ${e.ticks}, điểm ${e.score}, ${ev(lines, 'pulse').length} lần tỏa sáng, ${ev(lines, 'player_hit').length} lần bị chạm`;
 });
 check('P1 hồi quy', 'Nhặt đom đóm, nạp đèn, thắp đèn (+10/đom đóm khi nạp, +100/đèn)', '`p1_pickup_deposit`', () => {
@@ -61,8 +61,8 @@ check('P1 hồi quy', 'Nhặt đom đóm, nạp đèn, thắp đèn (+10/đom đ
     frames: [{ tick: 0, move: [0, 1] }, { tick: 100, move: [0, 0], interact: true }, { tick: 101, interact: false }], ticks: 120, every: 60 });
   expect(ev(lines, 'mote_picked').length === 1, 'pickup');
   const lit = ev(lines, 'lantern_lit')[0]; expect(lit?.data.lantern_id === 'L1', 'lit');
-  expect(end(lines).score === 110, `score ${end(lines).score}`);
-  return `mote_picked tick ${ev(lines, 'mote_picked')[0].tick}, deposit + lantern_lit tick ${lit.tick}, điểm 110 (10 + 100)`;
+  expect(end(lines).score === 105, `score ${end(lines).score}`); // Phase 3: per_mote=5 (was 10), so 1*5+100=105
+  return `mote_picked tick ${ev(lines, 'mote_picked')[0].tick}, deposit + lantern_lit tick ${lit.tick}, điểm 105 (5 + 100)`;
 });
 check('P1 hồi quy', 'Bị Bóng Mực chạm mất lửa, hết lửa thì thua', '`p1_lose_no_flames`', () => {
   const { lines } = cli('p1_lose_no_flames', { scenario: sc({ player: { flames: 1, carried: 4 }, shades: [{ id: 'S1', pos: [5, 0, 0] }] }), ticks: 600, every: 600 });

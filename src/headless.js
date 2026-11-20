@@ -72,7 +72,7 @@ export function validateScenario(s) {
   if (s.player !== undefined) {
     if (typeof s.player !== 'object' || s.player === null) bad('player must be an object');
     if (s.player.pos !== undefined && !isVec3(s.player.pos)) bad('player.pos must be [x,y,z]');
-    for (const k of ['carried', 'flames', 'invuln_ticks', 'dash_cd_ticks', 'pulse_cd_ticks', 'charm_ticks'])
+    for (const k of ['carried', 'flames', 'invuln_ticks', 'dash_cd_ticks', 'pulse_cd_ticks', 'charm_ticks', 'successful_lights'])
       if (s.player[k] !== undefined && !isNat(s.player[k])) bad(`player.${k} must be a non-negative integer`);
   }
   for (const k of ['random_motes', 'random_shades', 'random_drifters', 'wind_enabled'])
@@ -82,8 +82,9 @@ export function validateScenario(s) {
   for (const sh of s.shades || []) {
     if (!sh || !isVec3(sh.pos)) bad('each shade needs pos [x,y,z]');
     if (sh.id !== undefined && typeof sh.id !== 'string') bad('shade id must be a string');
-    if (sh.state !== undefined && !['spawning', 'wander', 'chase', 'recoil', 'stunned'].includes(sh.state)) bad(`shade state ${sh.state} unknown`);
+    if (sh.state !== undefined && !['spawning', 'wander', 'chase', 'recoil', 'stunned', 'drain'].includes(sh.state)) bad(`shade state ${sh.state} unknown`);
     if (sh.state_ticks_left !== undefined && !isNat(sh.state_ticks_left)) bad('shade state_ticks_left must be a non-negative integer');
+    if (sh.target_lantern_id !== undefined && typeof sh.target_lantern_id !== 'string') bad('shade target_lantern_id must be a string');
   }
   for (const d of s.drifters || []) {
     if (!d || !isVec3(d.pos)) bad('each drifter needs pos [x,y,z]');
@@ -100,6 +101,9 @@ export function validateScenario(s) {
     if (l.pos !== undefined && !isVec3(l.pos)) bad(`lantern ${l.id} pos must be [x,y,z]`);
     if (l.deposited !== undefined && !isNat(l.deposited)) bad(`lantern ${l.id} deposited must be a non-negative integer`);
     if (l.lit !== undefined && typeof l.lit !== 'boolean') bad(`lantern ${l.id} lit must be boolean`);
+    if (l.fuel !== undefined && !(isNum(l.fuel) && l.fuel >= 0)) bad(`lantern ${l.id} fuel must be a non-negative number`);
+    if (l.ever_lit !== undefined && typeof l.ever_lit !== 'boolean') bad(`lantern ${l.id} ever_lit must be boolean`);
+    if (l.relit_count !== undefined && !isNat(l.relit_count)) bad(`lantern ${l.id} relit_count must be a non-negative integer`);
   }
   if (s.time_left_s !== undefined && !(isNum(s.time_left_s) && s.time_left_s >= 0)) bad('time_left_s must be a non-negative number');
   return s;

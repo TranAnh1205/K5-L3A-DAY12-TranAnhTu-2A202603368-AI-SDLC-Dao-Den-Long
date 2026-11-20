@@ -13,7 +13,7 @@ const cli = (args) => spawnSync(process.execPath, ['src/headless.js', ...args], 
 const write = (name, obj) => { const f = path.join(tmp, name); fs.writeFileSync(f, typeof obj === 'string' ? obj : JSON.stringify(obj)); return f; };
 
 test('game.contract.json tuning equals the numbers the game uses', () => {
-  assert.equal(contract.contract_version, '1.1');
+  assert.equal(contract.contract_version, '1.2');
   assert.deepEqual(contract.tuning, TUNING);
   assert.equal(contract.headless_cmd, 'node src/headless.js');
 });

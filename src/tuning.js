@@ -1,17 +1,17 @@
-// Standard numbers from TICKET-02 (contract v1.1). Single source of gameplay constants.
+// Standard numbers from TICKET-03 (contract v1.2). Single source of gameplay constants.
 // Must equal game.contract.json "tuning" (enforced by tests/cli.test.js).
 export const TUNING = {
   player_speed: 6,
-  carry_capacity: 10,
+  carry_capacity: 10,          // base capacity; actual = min(capacity_max, 10 + 2*successfulLights)
   lantern_cost: 10,
   lantern_count_night1: 5,
   pickup_radius: 1,
   interact_radius: 2,
   pulse_cost: 3,
   pulse_radius: 5,
-  night1_duration_s: 300,
-  night2_duration_s: 330,
-  night3_duration_s: 360,
+  night1_duration_s: 240,      // CHANGED from 300 (Phase 3)
+  night2_duration_s: 270,      // CHANGED from 330 (Phase 3)
+  night3_duration_s: 300,      // CHANGED from 360 (Phase 3)
   flames: 3,
   invuln_s: 1.5,
   hit_drop_ratio: 0.5,
@@ -25,7 +25,25 @@ export const TUNING = {
   dash_duration_s: 0.2,
   dash_cooldown_s: 1.5,
   fall_enabled: true,
-  score: { per_mote: 10, per_lantern: 100, per_stun: 5, per_second_left: 2, per_flame_left: 50 },
+  // Phase 3 additions
+  fuel_max: 100,
+  fuel_decay_per_s: 1.0,
+  fuel_per_mote: 10,
+  relight_cost: 5,
+  win_ratio: 0.6,
+  drain_per_s: 5,
+  low_fuel_threshold: 30,
+  capacity_max: 20,
+  score: {
+    per_mote: 5,                   // CHANGED from 10 (Phase 3); applies to all deposits incl. refuel
+    per_lantern: 100,              // first light
+    per_relight: 40,               // NEW Phase 3
+    per_stun: 5,
+    per_drain_stun_bonus: 15,      // NEW Phase 3: bonus when shade was draining
+    per_lantern_dawn_base: 50,     // NEW Phase 3: dawn bonus per lit lantern (+ floor(fuel))
+    per_flame_left: 50,
+    // REMOVED Phase 3: per_second_left (time bonus gone)
+  },
 };
 
 // Constants from the ticket that are not part of the contract "tuning" block.
